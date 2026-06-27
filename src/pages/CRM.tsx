@@ -96,12 +96,8 @@ export default function CRM() {
   const [, navigate] = useLocation();
   const [activeQuickAction, setActiveQuickAction] = useState<string | null>(null);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  // Demo data is instant — no artificial loading delay.
+  const [loading] = useState(false);
 
   // ─── Computed Data ───────────────────────────────────────
   const stats = useMemo(() => {
