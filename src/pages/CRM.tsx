@@ -103,32 +103,6 @@ export default function CRM() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-full px-6 md:px-8 py-6 max-w-[1400px] mx-auto space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <Skeleton className="h-6 w-48 mb-2" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-24" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Skeleton className="h-48 rounded-xl md:col-span-2" />
-          <Skeleton className="h-48 rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
   // ─── Computed Data ───────────────────────────────────────
   const stats = useMemo(() => {
     const active = CRM_CUSTOMERS.filter(c => c.status === "active").length;
@@ -175,6 +149,34 @@ export default function CRM() {
 
   function completeTask(taskId: string) {
     setCompletedTasks(prev => new Set([...prev, taskId]));
+  }
+
+  // Loading skeleton — placed AFTER all hooks so hook order stays stable
+  // across renders (otherwise React throws minified error #310).
+  if (loading) {
+    return (
+      <div className="min-h-full px-6 md:px-8 py-6 max-w-[1400px] mx-auto space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-6 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-48 rounded-xl md:col-span-2" />
+          <Skeleton className="h-48 rounded-xl" />
+        </div>
+      </div>
+    );
   }
 
   return (

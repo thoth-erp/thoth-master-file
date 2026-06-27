@@ -10,6 +10,7 @@ import {
   BarChart3, Palette, Box, Link2, Bookmark, Calculator,
   Sparkles, Zap, Database, Clock, Map, LayoutList,
   CreditCard, Smartphone, Globe, Paperclip, Smile, Mic,
+  Users, Package, TrendingUp, Briefcase,
 } from "lucide-react";
 import type { StudioBlock, BlockType } from "../lib/studio-data";
 
@@ -172,8 +173,6 @@ function SlashCommandMenu({
     }
   }, [selectedIndex]);
 
-  if (!visible) return null;
-
   // Group by category for display
   const groupedItems = useMemo(() => {
     if (filter) return [{ category: null, items: filtered }];
@@ -189,6 +188,9 @@ function SlashCommandMenu({
   }, [filtered, filter]);
 
   let flatIndex = 0;
+
+  // Guard placed after all hooks so hook order stays stable (avoids React #310).
+  if (!visible) return null;
 
   return (
     <motion.div

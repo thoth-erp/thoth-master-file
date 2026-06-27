@@ -345,9 +345,13 @@ function Router() {
   // ── Public landing page: reachable in every mode ──────────
   if (path === "/welcome") return <Landing />;
 
-  // ── Demo mode: premium furniture onboarding ──
+  // ── Demo mode ──
   if (isDemoMode) {
-    if (!onboardingData?.completed) return <WorkspaceSetup />;
+    if (!onboardingData?.completed) {
+      // The landing IS the launch page; its CTAs (→ /auth) open onboarding.
+      if (path === "/") return <Landing />;
+      return <WorkspaceSetup />;
+    }
     // No auth in demo — the landing's door leads straight into the app.
     if (path === "/auth") return <Redirect to="/" />;
     return <AppRoutes />;
