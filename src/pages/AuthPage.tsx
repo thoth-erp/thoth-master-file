@@ -1,66 +1,68 @@
 /**
  * AuthPage — Sign in / Sign up
  *
- * Harmonises with the landing page: same warm cream palette,
- * Playfair Display, Ibis mark, muted lilac accents.
- * Split layout on desktop (left: brand story, right: form),
- * centered single-column on mobile.
+ * Matches the joyful landing aesthetic: cream + mint canvas, teal & purple
+ * duo, ink text, Forum display + Darker Grotesque body, breathing ibis and a
+ * playful floating-module brand panel. Split layout on desktop, single column
+ * on mobile. Auth contract unchanged (signIn / signUp / signInWithGoogle).
  */
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { signInWithGoogle, signIn, signUp } from "../lib/auth";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Check, Sparkles, ShoppingBag, Boxes, Wallet, LineChart } from "lucide-react";
 
 type Mode = "signin" | "signup";
 
-// ─── Palette (mirrors the landing page) ──────────────────
-
-const LP_VARS: React.CSSProperties = {
-  ["--night" as string]: "hsl(42 35% 97%)",
-  ["--night-2" as string]: "hsl(40 28% 96%)",
-  ["--line" as string]: "hsl(120 8% 88%)",
-  ["--moon" as string]: "hsl(220 12% 20%)",
-  ["--moon-dim" as string]: "hsl(220 8% 52%)",
-  ["--gold" as string]: "hsl(267 28% 56%)",
-  ["--gold-ink" as string]: "hsl(42 35% 97%)",
-  ["--cream" as string]: "hsl(120 14% 93%)",
-  ["--ink" as string]: "hsl(220 12% 20%)",
-  ["--ink-soft" as string]: "hsl(220 8% 52%)",
+const VARS: React.CSSProperties = {
+  ["--cream" as string]: "#F9F7F4",
+  ["--mint" as string]: "#E2F4F0",
+  ["--purple" as string]: "#78678C",
+  ["--purple-deep" as string]: "#5E4F70",
+  ["--teal" as string]: "#3A7D7A",
+  ["--teal-deep" as string]: "#2C625F",
+  ["--ink" as string]: "#2D3139",
+  ["--ink-soft" as string]: "#6B6F78",
+  ["--paper" as string]: "#FFFFFF",
 };
 
-const serif: React.CSSProperties = { fontFamily: "'Playfair Display', serif" };
+const display: React.CSSProperties = { fontFamily: "'Forum', Georgia, serif" };
+const body: React.CSSProperties = { fontFamily: "'Darker Grotesque', system-ui, sans-serif" };
+const EASE = [0.16, 1, 0.3, 1] as const;
 
-// ─── Ibis mark (same as landing page) ────────────────────
-
-function IbisMark({ size = 30, stroke = "currentColor" }: { size?: number; stroke?: string }) {
+function Ibis({ size = 30 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden>
-      <path d="M37 41c-9 0-15-6-15-14 0-7 4.5-11 9.5-11 4 0 6.5 2.5 6.5 5.5 0 2.6-1.8 4.3-4 4.3-1.8 0-3-1.1-3-2.6 0-1.2.8-2 1.9-2" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M22 17C18 11 12.5 8 5 8.5c4 1.8 6.5 4.5 8.2 8.7" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M11 41h26" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
+    <motion.svg
+      width={size} height={Math.round(size * (596 / 446))} viewBox="0 0 446 596" fill="none" aria-hidden
+      animate={{ y: [0, -4, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <circle cx="248.743" cy="134.661" r="134.661" fill="var(--teal)" />
+      <circle cx="26.5073" cy="26.5073" r="26.5073" transform="matrix(1 0 0 -1 234.653 143.724)" fill="var(--cream)" />
+      <path d="M240.099 83.1536C262 69.1197 294.863 68.573 319.811 73.9713C383.905 85.0048 428.393 139.848 440.115 201.554C443.542 219.581 442.808 238.935 442.808 257.232L442.796 319.168L442.804 442.224C442.804 451.577 442.856 461.062 442.889 470.558H231.183L231.187 407.828L231.153 361.935C231.146 353.947 231.072 345.877 231.168 337.936C231.546 306.552 239.354 277.957 255.951 251.213C267.156 233.159 293.22 193.894 284.172 172.114C282.114 167.032 278.078 163.003 272.992 160.955C266.767 158.483 260.073 158.977 253.546 158.95C226.284 158.836 203.748 164.994 178.778 175.67C109.836 205.149 50.5593 252.94 15.9083 320.322C10.4219 330.991 6.86052 339.561 2.36035 350.612C3.66508 332.726 12.3456 309.584 19.6071 293.366C52.324 220.299 118.836 168.408 189.043 133.675C194.523 130.964 200.086 128.383 205.083 124.839C212.411 119.782 214.603 112.284 218.877 104.943C224.122 96.0992 231.397 88.6303 240.099 83.1536Z" fill="var(--purple)" />
+      <path d="M319.811 73.9714C383.905 85.0049 428.394 139.848 440.115 201.554C443.543 219.582 442.809 238.935 442.809 257.232L442.796 319.168L442.805 442.224C442.805 451.577 442.856 461.062 442.889 470.558H394.914C381.09 447.049 367.496 423.408 354.133 399.636C327.158 351.011 301.349 305.648 311.119 247.792C316.913 213.481 335.025 189.518 339.719 154.96C343.575 126.566 337.161 96.9714 319.811 73.9714Z" fill="var(--purple-deep)" />
+    </motion.svg>
   );
 }
 
-// ─── Easing ──────────────────────────────────────────────
-
-const EASE = [0.16, 1, 0.3, 1] as const;
-
-// ─── Page ────────────────────────────────────────────────
+const PANEL_CARDS = [
+  { label: "Sales", icon: ShoppingBag, tint: "var(--teal)", x: "8%", y: "14%", rot: -6, d: 0 },
+  { label: "Production", icon: Boxes, tint: "var(--purple)", x: "58%", y: "6%", rot: 5, d: 0.5 },
+  { label: "Finance", icon: Wallet, tint: "var(--teal-deep)", x: "4%", y: "62%", rot: 6, d: 1 },
+  { label: "Analytics", icon: LineChart, tint: "var(--purple-deep)", x: "56%", y: "68%", rot: -4, d: 1.5 },
+];
 
 export default function AuthPage() {
   const [mode, setMode] = useState<Mode>("signin");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
 
   async function handleGoogle() {
-    setGoogleLoading(true);
-    setError(null);
+    setGoogleLoading(true); setError(null); setNotice(null);
     try {
       const res = await signInWithGoogle();
       if (res.error) { setError(res.error.message); setGoogleLoading(false); }
@@ -72,13 +74,12 @@ export default function AuthPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setEmailLoading(true);
-    setError(null);
+    setEmailLoading(true); setError(null); setNotice(null);
     try {
       if (mode === "signup") {
         const res = await signUp(email, password, fullName);
         if (res.error) throw res.error;
-        setError("Check your email for a confirmation link, then sign in.");
+        setNotice("Check your email for a confirmation link, then sign in.");
         setMode("signin");
       } else {
         const res = await signIn(email, password);
@@ -91,241 +92,174 @@ export default function AuthPage() {
     }
   }
 
-  const inputCls = "w-full h-11 rounded-xl border border-[var(--line)] bg-[var(--night)] px-4 text-[13.5px] text-[var(--moon)] focus:outline-none focus:ring-2 focus:ring-[var(--gold)/0.2] transition placeholder:text-[var(--moon-dim)]";
+  const inputCls = "w-full h-12 rounded-2xl border border-[var(--ink)]/12 bg-[var(--paper)] px-4 text-[18px] font-semibold text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--teal)]/30 focus:border-[var(--teal)] transition placeholder:text-[var(--ink-soft)] placeholder:font-medium";
 
   return (
-    <div style={LP_VARS} className="min-h-screen flex bg-[var(--night)] text-[var(--moon)]">
-      <style>{`
-        .auth-dark { --night: hsl(220 14% 12%); --night-2: hsl(220 14% 16%); --line: hsl(220 10% 22%); --moon: hsl(42 30% 93%); --moon-dim: hsl(220 8% 58%); --gold: hsl(267 30% 68%); --gold-ink: hsl(220 14% 12%); --cream: hsl(220 14% 16%); --ink: hsl(42 30% 93%); --ink-soft: hsl(220 8% 58%); }
-        .auth-dark .auth-card { background: hsl(220 14% 16%); border-color: hsl(220 10% 22%); }
-        .auth-dark .auth-input { background: hsl(220 14% 12%); border-color: hsl(220 10% 22%); color: hsl(42 30% 93%); }
-        .auth-dark .auth-input::placeholder { color: hsl(220 8% 48%); }
-        .auth-dark .auth-google { border-color: hsl(220 10% 22%); background: hsl(220 14% 16%); }
-        .auth-dark .auth-toggle { background: hsl(220 14% 18%); border-color: hsl(220 10% 22%); }
-        .auth-dark .auth-left { background: hsl(220 14% 10%); }
-      `}</style>
+    <div style={{ ...VARS, ...body }} className="min-h-screen flex bg-[var(--cream)] text-[var(--ink)]">
+      {/* ── Left brand panel (desktop) ─────────────────── */}
+      <div className="hidden lg:flex flex-col justify-between flex-1 px-14 py-12 relative overflow-hidden" style={{ background: "linear-gradient(150deg,var(--teal) 0%,var(--purple) 100%)" }}>
+        {/* dot texture */}
+        <motion.div
+          className="absolute inset-0 opacity-25"
+          style={{ backgroundImage: "radial-gradient(circle at 50% 50%, white 1px, transparent 1px)", backgroundSize: "28px 28px" }}
+          animate={{ backgroundPosition: ["0px 0px", "28px 28px"] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+        />
 
-      {/* ── Left panel (brand) — desktop only ────────── */}
-      <div className="auth-left hidden lg:flex flex-col justify-between flex-1 px-14 py-12 bg-[var(--cream)]">
-        <motion.a
-          href="/"
-          className="flex items-center gap-2.5 text-[var(--moon)] w-fit"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: EASE }}
-        >
-          <IbisMark size={26} stroke="var(--gold)" />
-          <span className="text-[18px] tracking-[0.12em]" style={serif}>THOTH</span>
+        <motion.a href="/" className="relative flex items-center gap-2.5 w-fit text-[var(--cream)]"
+          initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
+          <Ibis size={26} />
+          <span className="text-[24px] tracking-[0.14em]" style={display}>THOTH</span>
         </motion.a>
 
-        <div className="max-w-[420px]">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
-          >
-            <h2 className="text-[clamp(1.8rem,3vw,2.6rem)] leading-[1.15] [text-wrap:balance] mb-5" style={{ ...serif, letterSpacing: "-0.015em" }}>
-              Five thousand years of bookkeeping experience.
-            </h2>
-            <p className="text-[15px] leading-relaxed text-[var(--moon-dim)] max-w-[42ch]">
-              Sales, production, inventory, Shopify, loyalty and people — one system, two languages,
-              built in Egypt. The god of records would have insisted on nothing less.
-            </p>
-          </motion.div>
-
-          <motion.div
-            className="mt-10 space-y-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-          >
-            {[
-              { n: "34", l: "modules" },
-              { n: "2", l: "languages, first-class" },
-              { n: "1 day", l: "custom builds" },
-            ].map((s) => (
-              <div key={s.l} className="flex items-baseline gap-3">
-                <span className="text-[22px] text-[var(--gold)] tabular-nums" style={serif}>{s.n}</span>
-                <span className="text-[13px] text-[var(--moon-dim)]">{s.l}</span>
-              </div>
-            ))}
-          </motion.div>
+        {/* floating cards */}
+        <div className="relative h-[280px] my-4">
+          {PANEL_CARDS.map((c) => (
+            <motion.div key={c.label} className="absolute" style={{ left: c.x, top: c.y }}
+              initial={{ opacity: 0, scale: 0.6, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: EASE, delay: 0.3 + c.d * 0.25 }}>
+              <motion.div animate={{ y: [0, -9, 0], rotate: [c.rot, c.rot + 2, c.rot] }}
+                transition={{ duration: 4 + c.d, repeat: Infinity, ease: "easeInOut", delay: c.d }}
+                className="flex items-center gap-2.5 bg-[var(--paper)] rounded-2xl pl-2.5 pr-4 py-2.5"
+                style={{ boxShadow: "0 16px 34px -14px rgba(45,49,57,0.4)" }}>
+                <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: c.tint }}>
+                  <c.icon size={17} className="text-white" />
+                </span>
+                <span className="text-[19px] font-bold text-[var(--ink)] leading-none">{c.label}</span>
+              </motion.div>
+            </motion.div>
+          ))}
         </div>
 
-        <motion.p
-          className="text-[12px] text-[var(--moon-dim)]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          © 2026 THOTH · Cairo, Egypt
-        </motion.p>
-      </div>
-
-      {/* ── Right panel (form) ────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative">
-        {/* Mobile logo */}
-        <motion.div
-          className="lg:hidden text-center mb-10"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: EASE }}
-        >
-          <a href="/" className="inline-flex items-center gap-2.5 text-[var(--moon)]">
-            <IbisMark size={28} stroke="var(--gold)" />
-            <span className="text-[20px] tracking-[0.12em]" style={serif}>THOTH</span>
-          </a>
+        <motion.div className="relative max-w-[420px]"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.2 }}>
+          <h2 className="text-[clamp(2rem,3vw,2.8rem)] leading-[1.05] text-[var(--cream)] mb-4" style={display}>
+            One system that speaks your trade.
+          </h2>
+          <p className="text-[19px] leading-[1.3] text-[var(--cream)]/80 font-medium max-w-[42ch]">
+            Sales, production, inventory, finance and people — bilingual, playful, and shaped around your business. Built in Egypt by the scribes of records.
+          </p>
+          <div className="mt-7 flex flex-wrap gap-2.5">
+            {["27+ modules", "EN / AR", "1-day custom builds"].map((t) => (
+              <span key={t} className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur px-3.5 py-1.5 text-[16px] font-semibold text-[var(--cream)]">
+                <Check size={13} /> {t}
+              </span>
+            ))}
+          </div>
         </motion.div>
 
-        <div className="w-full max-w-[380px]">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}
-          >
-            <h1 className="text-[28px] leading-tight mb-1.5" style={{ ...serif, letterSpacing: "-0.02em" }}>
-              {mode === "signin" ? "Welcome back" : "Create your workspace"}
+        <p className="relative text-[15px] font-semibold text-[var(--cream)]/70">© 2026 THOTH · Cairo, Egypt</p>
+      </div>
+
+      {/* ── Right form panel ───────────────────────────── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        {/* Mobile logo */}
+        <motion.a href="/" className="lg:hidden flex items-center gap-2.5 mb-10 text-[var(--ink)]"
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
+          <Ibis size={28} />
+          <span className="text-[26px] tracking-[0.14em]" style={display}>THOTH</span>
+        </motion.a>
+
+        <div className="w-full max-w-[400px]">
+          {/* Mode toggle */}
+          <motion.div className="flex p-1 rounded-full bg-[var(--mint)] mb-8"
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
+            {(["signin", "signup"] as Mode[]).map((m) => (
+              <button key={m} onClick={() => { setMode(m); setError(null); setNotice(null); }}
+                className="relative flex-1 py-2.5 text-[17px] font-bold rounded-full transition-colors">
+                {mode === m && (
+                  <motion.span layoutId="auth-pill" className="absolute inset-0 rounded-full bg-[var(--ink)]"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }} />
+                )}
+                <span className={"relative z-10 " + (mode === m ? "text-[var(--cream)]" : "text-[var(--teal-deep)]")}>
+                  {m === "signin" ? "Sign in" : "Sign up"}
+                </span>
+              </button>
+            ))}
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE, delay: 0.1 }}>
+            <h1 className="text-[40px] leading-[1.02] mb-1.5" style={display}>
+              {mode === "signin" ? "Welcome back." : "Let's build yours."}
             </h1>
-            <p className="text-[14px] text-[var(--moon-dim)] mb-8">
-              {mode === "signin"
-                ? "Sign in to continue to THOTH"
-                : "Start your free account — one user, forever."}
+            <p className="text-[18px] font-medium text-[var(--ink-soft)] mb-7">
+              {mode === "signin" ? "Sign in to continue to THOTH." : "Free for one user, forever. No card needed."}
             </p>
           </motion.div>
 
           {/* Google */}
-          <motion.button
-            type="button"
-            onClick={handleGoogle}
-            disabled={googleLoading}
-            className="auth-google w-full flex items-center justify-center gap-3 h-12 rounded-xl border border-[var(--line)] bg-[var(--night-2)] text-[13.5px] font-medium text-[var(--moon)] hover:brightness-95 transition-all disabled:opacity-50"
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.5, ease: EASE }}
-          >
-            {googleLoading ? (
-              <Loader2 size={16} className="animate-spin text-[var(--moon-dim)]" />
-            ) : (
-              <svg width="17" height="17" viewBox="0 0 24 24">
+          <motion.button type="button" onClick={handleGoogle} disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 h-12 rounded-2xl border border-[var(--ink)]/12 bg-[var(--paper)] text-[18px] font-bold text-[var(--ink)] hover:bg-[var(--mint)]/40 transition-colors disabled:opacity-50"
+            whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5, ease: EASE }}>
+            {googleLoading ? <Loader2 size={17} className="animate-spin text-[var(--ink-soft)]" /> : (
+              <svg width="18" height="18" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
             )}
-            {googleLoading ? "جاري تسجيل الدخول…" : "Continue with Google"}
+            Continue with Google
           </motion.button>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-[var(--line)]" />
-            <span className="text-[11px] text-[var(--moon-dim)]">or</span>
-            <div className="flex-1 h-px bg-[var(--line)]" />
+            <div className="flex-1 h-px bg-[var(--ink)]/10" />
+            <span className="text-[15px] font-semibold text-[var(--ink-soft)]">or with email</span>
+            <div className="flex-1 h-px bg-[var(--ink)]/10" />
           </div>
 
-          {/* Email form */}
-          <motion.form
-            onSubmit={handleSubmit}
-            className="space-y-3"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5, ease: EASE }}
-          >
-            <AnimatePresence mode="wait">
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <AnimatePresence mode="popLayout">
               {mode === "signup" && (
-                <motion.input
-                  key="name"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Full name"
-                  className="auth-input"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 44 }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25, ease: EASE }}
-                />
+                <motion.input key="name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Full name" className={inputCls}
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 48 }} exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: EASE }} />
               )}
             </AnimatePresence>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              required
-              className="auth-input"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              required
-              minLength={6}
-              className="auth-input"
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email address" required className={inputCls} />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required minLength={6} className={inputCls} />
 
-            <motion.button
-              type="submit"
-              disabled={emailLoading || !email || !password}
-              className="w-full h-11 rounded-xl bg-[var(--gold)] text-[var(--gold-ink)] text-[13.5px] font-semibold flex items-center justify-center gap-2 hover:brightness-110 transition-all disabled:opacity-40"
-              whileHover={{ scale: 1.01, y: -1 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {emailLoading && <Loader2 size={14} className="animate-spin" />}
+            <motion.button type="submit" disabled={emailLoading || !email || !password}
+              className="w-full h-12 rounded-2xl bg-[var(--teal)] text-[var(--cream)] text-[19px] font-bold flex items-center justify-center gap-2 hover:bg-[var(--teal-deep)] transition-colors disabled:opacity-40 shadow-[0_10px_30px_-10px_rgba(58,125,122,0.6)]"
+              whileHover={{ scale: 1.01, y: -1 }} whileTap={{ scale: 0.98 }}>
+              {emailLoading && <Loader2 size={16} className="animate-spin" />}
               {mode === "signin" ? "Sign in" : "Create account"}
+              {!emailLoading && <ArrowRight size={17} />}
             </motion.button>
-          </motion.form>
+          </form>
 
-          {/* Toggle mode */}
-          <motion.p
-            className="text-center text-[13px] text-[var(--moon-dim)] mt-6"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-          >
-            {mode === "signin" ? (
-              <>Don't have an account?{" "}
-                <button onClick={() => { setMode("signup"); setError(null); }} className="text-[var(--gold)] hover:underline underline-offset-2">
-                  Start free
-                </button>
-              </>
-            ) : (
-              <>Already have an account?{" "}
-                <button onClick={() => { setMode("signin"); setError(null); }} className="text-[var(--gold)] hover:underline underline-offset-2">
-                  Sign in
-                </button>
-              </>
-            )}
-          </motion.p>
-
-          {/* Error */}
           <AnimatePresence>
+            {notice && (
+              <motion.p className="mt-4 flex items-center gap-2 text-[16px] font-semibold text-[var(--teal-deep)] bg-[var(--mint)] rounded-xl px-3.5 py-2.5"
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                <Sparkles size={15} /> {notice}
+              </motion.p>
+            )}
             {error && (
-              <motion.p
-                className="mt-4 text-[12px] text-rose-500 text-center"
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-              >
+              <motion.p className="mt-4 text-[16px] font-semibold text-rose-600 bg-rose-50 rounded-xl px-3.5 py-2.5"
+                initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 {error}
               </motion.p>
             )}
           </AnimatePresence>
 
-          {/* Back to home */}
-          <motion.a
-            href="/"
-            className="mt-10 flex items-center justify-center gap-1.5 text-[12px] text-[var(--moon-dim)] hover:text-[var(--moon)] transition-colors"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-          >
-            <ArrowRight size={13} className="rotate-180" />
-            Back to home
-          </motion.a>
+          <p className="text-center text-[16px] font-medium text-[var(--ink-soft)] mt-6">
+            {mode === "signin" ? (
+              <>New to THOTH?{" "}
+                <button onClick={() => { setMode("signup"); setError(null); setNotice(null); }} className="text-[var(--teal)] font-bold hover:underline underline-offset-2">Start free</button>
+              </>
+            ) : (
+              <>Already have an account?{" "}
+                <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="text-[var(--teal)] font-bold hover:underline underline-offset-2">Sign in</button>
+              </>
+            )}
+          </p>
+
+          <a href="/" className="mt-8 flex items-center justify-center gap-1.5 text-[15px] font-semibold text-[var(--ink-soft)] hover:text-[var(--ink)] transition-colors">
+            <ArrowRight size={14} className="rotate-180" /> Back to home
+          </a>
         </div>
       </div>
     </div>

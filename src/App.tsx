@@ -96,6 +96,11 @@ import LoyaltyMergePage from "./pages/LoyaltyMerge";
 import LoyaltyNotificationsPage from "./pages/LoyaltyNotifications";
 import AuthCallback from "./pages/AuthCallback";
 import AdminSettingsPage from "./pages/AdminSettings";
+import CodeSettingsPage from "./pages/CodeSettings";
+import QuotationDesignerPage from "./pages/QuotationDesigner";
+import InventoryFabricsPage from "./pages/InventoryFabrics";
+import InventoryMaterialsPage from "./pages/InventoryMaterials";
+import InventoryEquipmentPage from "./pages/InventoryEquipment";
 import POSPage from "./pages/POS";
 import BranchesPage from "./pages/Branches";
 import CRMPage from "./pages/CRM";
@@ -227,6 +232,8 @@ function AppRoutes() {
         <Route path="/work" component={Work} />
         <Route path="/products/:id" component={ProductDetail} />
         <Route path="/products" component={ProductsPage} />
+        <Route path="/quotations/designer/:templateId" component={QuotationDesignerPage} />
+        <Route path="/quotations/designer" component={QuotationDesignerPage} />
         <Route path="/quotations" component={QuotationsPage} />
         <Route path="/orders" component={SalesOrdersPage} />
         <Route path="/site-visits" component={SiteVisitsPage} />
@@ -271,6 +278,9 @@ function AppRoutes() {
         <Route path="/sales" component={Sales} />
         <Route path="/operations" component={OperationsPage} />
         <Route path="/purchasing" component={PurchasingPage} />
+        <Route path="/inventory/fabrics" component={InventoryFabricsPage} />
+        <Route path="/inventory/materials" component={InventoryMaterialsPage} />
+        <Route path="/inventory/equipment" component={InventoryEquipmentPage} />
         <Route path="/inventory" component={InventoryPage} />
         <Route path="/resources/:id" component={ResourceDetail} />
         <Route path="/resources" component={Resources} />
@@ -314,6 +324,7 @@ function AppRoutes() {
         <Route path="/reports" component={ReportsPage} />
         <Route path="/roadmap" component={Roadmap} />
         <Route path="/data" component={DataManagement} />
+        <Route path="/settings/codes" component={CodeSettingsPage} />
         <Route path="/settings" component={AdminSettingsPage} />
         <Route component={NotFound} />
       </Switch>

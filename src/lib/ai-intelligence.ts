@@ -50,7 +50,7 @@ export function forecastRevenue(): ForecastResult {
     ],
     factors_ar: [
       "متوسط آخر ٣ أشهر",
-      `معدل النمو: ${(growth * 100).toFixed(١)}٪`,
+      `معدل النمو: ${(growth * 100).toFixed(1)}٪`,
       `${FIN_INVOICES.filter(i => i.status === "overdue").length} فواتير متأخرة قد تأخر التحصيل`,
     ],
   };

@@ -1,1139 +1,556 @@
 /**
- * THOTH — Public landing page
+ * Landing — "The Joyful Operating System"
  *
- * Brand register: warm cream canvas, graphite ink, muted lilac accent,
- * soft sage sections. The Thoth myth (writing → counting → judgement)
- * is the structure, carried by copy, Playfair type and drawn glyphs.
+ * A playful, tech-forward marketing page built on the real THOTH brand palette
+ * (cream + mint canvas, teal & purple as a duo, ink text) with Forum display +
+ * Darker Grotesque body. Heavy on motion: floating module cards, count-up
+ * stats, a brand marquee, scroll reveals, magnetic CTAs and a breathing ibis.
  *
- * Motion: framer-motion for scroll reveals, stagger, spring physics,
- * AnimatePresence for tab transitions. All respect prefers-reduced-motion.
- * Content visible by default; JS arms entrance animations for crawlers/no-JS.
+ * Industry-agnostic copy: THOTH adapts to any business and speaks your words.
  */
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { motion, useInView, useReducedMotion, AnimatePresence } from "framer-motion";
 import {
-  ArrowRight, Check, Minus, ChevronDown, Menu, X,
-  PenLine, Scale, Eye, ShoppingBag, Boxes, Gift, Hammer,
+  motion,
+  useInView,
+  useScroll,
+  useTransform,
+  useMotionValue,
+  useSpring,
+  animate,
+  type Variants,
+} from "framer-motion";
+import {
+  ArrowRight, Sparkles, Boxes, LineChart, Wallet, Truck,
+  ShoppingBag, Gauge, Star, Check, Zap, Globe,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { Logo } from "@/components/Logo";
 
-/* ─── Palette ─────────────────────────────────────────── */
+// ─── Brand palette ────────────────────────────────────────
 
-const LP_VARS: React.CSSProperties = {
-  ["--night" as string]: "hsl(340 25% 97%)",
-  ["--night-2" as string]: "hsl(340 20% 96%)",
-  ["--night-3" as string]: "hsl(340 15% 94%)",
-  ["--line" as string]: "hsl(340 8% 88%)",
-  ["--moon" as string]: "hsl(340 12% 20%)",
-  ["--moon-dim" as string]: "hsl(340 8% 52%)",
-  ["--gold" as string]: "hsl(340 40% 55%)",
-  ["--gold-ink" as string]: "hsl(340 25% 97%)",
-  ["--gold-deep" as string]: "hsl(340 42% 45%)",
-  ["--lapis" as string]: "hsl(200 40% 58%)",
-  ["--cream" as string]: "hsl(340 10% 94%)",
-  ["--ink" as string]: "hsl(340 12% 20%)",
-  ["--ink-soft" as string]: "hsl(340 8% 52%)",
+const VARS: React.CSSProperties = {
+  ["--cream" as string]: "#F9F7F4",
+  ["--mint" as string]: "#E2F4F0",
+  ["--purple" as string]: "#78678C",
+  ["--purple-deep" as string]: "#5E4F70",
+  ["--teal" as string]: "#3A7D7A",
+  ["--teal-deep" as string]: "#2C625F",
+  ["--ink" as string]: "#2D3139",
+  ["--ink-soft" as string]: "#6B6F78",
+  ["--paper" as string]: "#FFFFFF",
 };
 
-const serif = { fontFamily: "'Playfair Display', serif" };
+const display: React.CSSProperties = { fontFamily: "'Forum', Georgia, serif" };
+const body: React.CSSProperties = { fontFamily: "'Darker Grotesque', system-ui, sans-serif" };
 
-/* ─── Easing (Emil Kowalski curves) ──────────────────── */
+const EASE = [0.16, 1, 0.3, 1] as const;
 
-const EASE_OUT_QUINT = [0.22, 1, 0.36, 1] as const;
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+// ─── Real ibis mark, breathing ───────────────────────────
 
-/* ─── Motion variants ─────────────────────────────────── */
+function Ibis({ size = 34 }: { size?: number }) {
+  return (
+    <motion.svg
+      width={size} height={Math.round(size * (596 / 446))}
+      viewBox="0 0 446 596" fill="none" aria-hidden
+      animate={{ y: [0, -4, 0] }}
+      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+    >
+      <circle cx="248.743" cy="134.661" r="134.661" fill="var(--teal)" />
+      <circle cx="26.5073" cy="26.5073" r="26.5073" transform="matrix(1 0 0 -1 234.653 143.724)" fill="var(--cream)" />
+      <path d="M240.099 83.1536C262 69.1197 294.863 68.573 319.811 73.9713C383.905 85.0048 428.393 139.848 440.115 201.554C443.542 219.581 442.808 238.935 442.808 257.232L442.796 319.168L442.804 442.224C442.804 451.577 442.856 461.062 442.889 470.558H231.183L231.187 407.828L231.153 361.935C231.146 353.947 231.072 345.877 231.168 337.936C231.546 306.552 239.354 277.957 255.951 251.213C267.156 233.159 293.22 193.894 284.172 172.114C282.114 167.032 278.078 163.003 272.992 160.955C266.767 158.483 260.073 158.977 253.546 158.95C226.284 158.836 203.748 164.994 178.778 175.67C109.836 205.149 50.5593 252.94 15.9083 320.322C10.4219 330.991 6.86052 339.561 2.36035 350.612C3.66508 332.726 12.3456 309.584 19.6071 293.366C52.324 220.299 118.836 168.408 189.043 133.675C194.523 130.964 200.086 128.383 205.083 124.839C212.411 119.782 214.603 112.284 218.877 104.943C224.122 96.0992 231.397 88.6303 240.099 83.1536Z" fill="var(--purple)" />
+      <path d="M319.811 73.9714C383.905 85.0049 428.394 139.848 440.115 201.554C443.543 219.582 442.809 238.935 442.809 257.232L442.796 319.168L442.805 442.224C442.805 451.577 442.856 461.062 442.889 470.558H394.914C381.09 447.049 367.496 423.408 354.133 399.636C327.158 351.011 301.349 305.648 311.119 247.792C316.913 213.481 335.025 189.518 339.719 154.96C343.575 126.566 337.161 96.9714 319.811 73.9714Z" fill="var(--purple-deep)" />
+    </motion.svg>
+  );
+}
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE_OUT_QUINT } },
-};
+// ─── Scroll reveal ───────────────────────────────────────
 
-const fadeIn = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.6, ease: EASE_OUT_QUINT } },
-};
-
-const scaleIn = {
-  hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: EASE_OUT_QUINT } },
-};
-
-const staggerContainer = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
-};
-
-const staggerContainerSlow = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } },
-};
-
-/* ─── Reveal wrapper (scroll-triggered) ───────────────── */
-
-function Reveal({ children, className, delay = 0, ...props }: {
-  children: React.ReactNode; className?: string; delay?: number;
-} & Omit<React.ComponentProps<typeof motion.div>, "children">) {
+function Reveal({ children, delay = 0, y = 24, className = "" }: {
+  children: React.ReactNode; delay?: number; y?: number; className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
-  const reduced = useReducedMotion();
-
+  const inView = useInView(ref, { once: true, margin: "-12% 0px" });
   return (
     <motion.div
       ref={ref}
+      initial={{ opacity: 0, y }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.7, ease: EASE, delay }}
       className={className}
-      initial={reduced ? false : "hidden"}
-      animate={inView ? "visible" : reduced ? "visible" : "hidden"}
-      transition={{ delay, ...fadeUp.visible.transition }}
-      {...props}
     >
       {children}
     </motion.div>
   );
 }
 
-/* ─── Animated number ─────────────────────────────────── */
+// ─── Count-up number ─────────────────────────────────────
 
-function useEasedNumber(target: number): number {
-  const [shown, setShown] = useState(target);
-  const raf = useRef<number>(0);
+function Counter({ to, suffix = "", duration = 1.6 }: { to: number; suffix?: string; duration?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true });
+  const [val, setVal] = useState(0);
   useEffect(() => {
-    cancelAnimationFrame(raf.current);
-    const from = shown;
-    const start = performance.now();
-    const dur = 550;
-    const tick = (t: number) => {
-      const p = Math.min((t - start) / dur, 1);
-      const e = 1 - Math.pow(1 - p, 4);
-      setShown(Math.round(from + (target - from) * e));
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
-  return shown;
+    if (!inView) return;
+    const controls = animate(0, to, {
+      duration, ease: EASE,
+      onUpdate: (v) => setVal(v),
+    });
+    return () => controls.stop();
+  }, [inView, to, duration]);
+  return <span ref={ref}>{Math.round(val).toLocaleString()}{suffix}</span>;
 }
 
-const egp = (n: number) => n.toLocaleString("en-EG");
+// ─── Magnetic button ─────────────────────────────────────
 
-/* ─── Drawn marks ─────────────────────────────────────── */
-
-function IbisMark({ size = 30, stroke = "currentColor" }: { size?: number; stroke?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-hidden>
-      <path d="M37 41c-9 0-15-6-15-14 0-7 4.5-11 9.5-11 4 0 6.5 2.5 6.5 5.5 0 2.6-1.8 4.3-4 4.3-1.8 0-3-1.1-3-2.6 0-1.2.8-2 1.9-2"
-        stroke={stroke} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M22 17C18 11 12.5 8 5 8.5c4 1.8 6.5 4.5 8.2 8.7" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M11 41h26" stroke={stroke} strokeWidth="2.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function MoonDisc({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 400 400" className={className} aria-hidden>
-      <defs>
-        <radialGradient id="lp-moon-glow" cx="50%" cy="42%" r="60%">
-          <stop offset="0%" stopColor="hsl(340 35% 90%)" />
-          <stop offset="55%" stopColor="hsl(340 30% 80%)" />
-          <stop offset="100%" stopColor="hsl(340 40% 64%)" />
-        </radialGradient>
-      </defs>
-      <circle cx="200" cy="200" r="180" fill="url(#lp-moon-glow)" opacity="0.9" />
-      <circle cx="200" cy="200" r="180" fill="none" stroke="hsl(340 40% 55% / 0.4)" strokeWidth="1.5" />
-      <circle cx="150" cy="140" r="26" fill="hsl(340 40% 55% / 0.18)" />
-      <circle cx="255" cy="240" r="40" fill="hsl(340 40% 55% / 0.13)" />
-      <circle cx="180" cy="280" r="16" fill="hsl(340 40% 55% / 0.16)" />
-    </svg>
-  );
-}
-
-/* ─── Ambient glyph field ─────────────────────────────── */
-
-const GLYPHS = [
-  { d: "M4 16c6-8 18-8 24 0-6 8-18 8-24 0Zm12 4a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", x: "8%", y: "18%", s: 34, dur: 11, delay: 0, par: 0.05 },
-  { d: "M6 26 24 8m0 0-6 1.5M24 8l-1.5 6", x: "85%", y: "14%", s: 30, dur: 9, delay: 1.2, par: 0.09 },
-  { d: "M16 4v22M8 26h16M16 8l-8 6c0 3 3.5 5 8 5s8-2 8-5l-8-6Z", x: "13%", y: "62%", s: 36, dur: 13, delay: 0.6, par: 0.12 },
-  { d: "M22 4a12 12 0 1 0 6 22A14 14 0 0 1 22 4Z", x: "90%", y: "55%", s: 32, dur: 10, delay: 2, par: 0.07 },
-  { d: "M5 10h22M5 16h22M5 22h14", x: "78%", y: "78%", s: 28, dur: 12, delay: 0.3, par: 0.1 },
-];
-
-function GlyphField() {
-  const reduced = useReducedMotion();
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-      {GLYPHS.map((g, i) => (
-        <svg key={i} viewBox="0 0 32 32" width={g.s} height={g.s} fill="none"
-          className="lp-glyph absolute"
-          style={{
-            left: g.x, top: g.y,
-            ["--dur" as string]: `${g.dur}s`,
-            ["--delay" as string]: `${g.delay}s`,
-          }}>
-          <path d={g.d} stroke="hsl(340 40% 55% / 0.35)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ))}
-      {!reduced && (
-        <div className="lp-ibis-glide absolute top-[24%] left-0">
-          <IbisMark size={42} stroke="hsl(340 40% 55% / 0.4)" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Hero product composition ────────────────────────── */
-
-function HeroMock() {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-
-  return (
-    <div ref={ref} className="relative mx-auto max-w-[920px] px-6" aria-hidden>
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
-        animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
-        transition={{ duration: 0.8, ease: EASE_OUT_QUINT, delay: 0.55 }}
-        className="lp-mock-card relative z-[2] rounded-2xl border border-[var(--line)] bg-[var(--night-2)] shadow-[0_32px_70px_-24px_hsl(220_12%_18%/0.18)] p-5 sm:p-6"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[13px] text-[var(--moon-dim)]">Today · Thursday</p>
-          <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">All systems writing</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { k: "Sales orders", v: "SO-2026-1148", s: "Confirmed · 84,500 EGP", tone: "hsl(150 35% 38%)" },
-            { k: "In production", v: "Silk evening gown ×3", s: "Cutting → Sewing", tone: "var(--gold)" },
-            { k: "From Shopify", v: "+144 orders synced", s: "2 minutes ago", tone: "hsl(200 45% 45%)" },
-          ].map((c, i) => (
-            <motion.div
-              key={c.k}
-              initial={{ opacity: 0, y: 16 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, ease: EASE_OUT_QUINT, delay: 0.7 + i * 0.1 }}
-              className="rounded-xl bg-[var(--night)] border border-[var(--line)] px-4 py-3.5"
-            >
-              <p className="text-[11px] text-[var(--moon-dim)] mb-1.5">{c.k}</p>
-              <p className="text-[15px] text-[var(--moon)]" style={serif}>{c.v}</p>
-              <p className="text-[11.5px] mt-1" style={{ color: c.tone }}>{c.s}</p>
-            </motion.div>
-          ))}
-        </div>
-        <div className="mt-4 flex items-end gap-1.5 h-[58px]">
-          {[34, 46, 30, 58, 44, 66, 52, 74, 60, 84, 70, 92].map((h, i) => (
-            <motion.span
-              key={i}
-              initial={{ scaleY: 0 }}
-              animate={inView ? { scaleY: 1 } : {}}
-              transition={{ duration: 0.6, ease: EASE_OUT_QUINT, delay: 0.9 + i * 0.04 }}
-              className="flex-1 rounded-t-[3px] bg-[hsl(340_40%_55%/0.45)]"
-              style={{ height: `${h}%`, transformOrigin: "bottom" }}
-            />
-          ))}
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6, ease: EASE_OUT_QUINT, delay: 0.75 }}
-        className="absolute -left-2 sm:left-6 -bottom-9 z-[3] hidden md:block"
-      >
-        <div className="lp-bob rounded-xl border border-[var(--line)] bg-[var(--night-2)] px-4 py-3 shadow-[0_16px_28px_-5px_hsl(220_12%_18%/0.09)]">
-          <p className="text-[11px] text-[var(--moon-dim)]">Inventory</p>
-          <p className="text-[13.5px] text-[var(--moon)]">Silk fabric — 50m · reorder 200m</p>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6, ease: EASE_OUT_QUINT, delay: 0.85 }}
-        className="absolute -right-2 sm:right-6 -bottom-7 z-[3] hidden md:block"
-      >
-        <div className="lp-bob rounded-xl border border-[var(--line)] bg-[var(--night-2)] px-4 py-3 shadow-[0_16px_28px_-5px_hsl(220_12%_18%/0.09)]" style={{ animationDelay: "1.4s" }}>
-          <p className="text-[11px] text-[var(--moon-dim)]">Loyalty</p>
-          <p className="text-[13.5px] text-[var(--moon)]">Mona earned 450 points · Gold tier</p>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* ─── Product tour mocks ──────────────────────────────── */
-
-function TourWork() {
-  return (
-    <div className="space-y-2.5">
-      {[
-        { t: "SO-2026-1142 — Summer collection, linen", s: "In production", pill: "bg-violet-100 text-violet-700", p: 64 },
-        { t: "SO-2026-1147 — Silk evening gowns ×6", s: "Confirmed", pill: "bg-blue-100 text-blue-700", p: 12 },
-        { t: "QT-3301 — Bridal wear order", s: "Quotation sent", pill: "bg-amber-100 text-amber-700", p: 0 },
-      ].map((r) => (
-        <div key={r.t} className="lp-white-card rounded-xl border border-black/[0.07] bg-white px-4 py-3.5">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[13.5px] text-[var(--ink)] truncate">{r.t}</p>
-            <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-medium shrink-0 ${r.pill}`}>{r.s}</span>
-          </div>
-          {r.p > 0 && (
-            <div className="mt-2.5 h-1.5 rounded-full bg-black/[0.06] overflow-hidden">
-              <div className="h-full rounded-full bg-[hsl(340_40%_55%)]" style={{ width: `${r.p}%` }} />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TourInventory() {
-  return (
-    <div className="lp-white-card rounded-xl border border-black/[0.07] bg-white p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[12px] text-[var(--ink-soft)]">Stock value by category</p>
-        <p className="text-[12px] text-[var(--ink)] font-medium">EGP 1.42M</p>
-      </div>
-      {[
-        { l: "Silk & linen fabrics", v: 78, c: "hsl(340 40% 55%)" },
-        { l: "Buttons & trims", v: 46, c: "hsl(32 60% 56%)" },
-        { l: "Thread & notions", v: 31, c: "hsl(120 20% 48%)" },
-      ].map((b) => (
-        <div key={b.l} className="mb-2.5">
-          <div className="flex justify-between text-[11.5px] mb-1"><span className="text-[var(--ink-soft)]">{b.l}</span><span className="text-[var(--ink)]">{b.v}%</span></div>
-          <div className="h-1.5 rounded-full bg-black/[0.06]"><div className="h-full rounded-full" style={{ width: `${b.v}%`, background: b.c }} /></div>
-        </div>
-      ))}
-      <p className="text-[11px] text-[var(--ink-soft)] mt-3">ABC analysis · reorder alerts · straight-line depreciation</p>
-    </div>
-  );
-}
-
-function TourShopify() {
-  return (
-    <div className="space-y-2.5">
-      {[
-        { t: "Products", d: "Two-way — 54 synced", arrow: "⇄" },
-        { t: "Orders & refunds", d: "144 imported as sales orders", arrow: "→" },
-        { t: "Customers", d: "215 became contacts", arrow: "→" },
-        { t: "Stock levels", d: "Matched by SKU, pushed nightly", arrow: "⇄" },
-      ].map((r) => (
-        <div key={r.t} className="lp-white-card flex items-center gap-3 rounded-xl border border-black/[0.07] bg-white px-4 py-3">
-          <span className="text-[15px] text-[hsl(340_40%_55%)] w-6 text-center">{r.arrow}</span>
-          <div><p className="text-[13px] text-[var(--ink)]">{r.t}</p><p className="text-[11.5px] text-[var(--ink-soft)]">{r.d}</p></div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TourLoyalty() {
-  return (
-    <div className="lp-white-card rounded-xl border border-black/[0.07] bg-white p-4">
-      {[
-        { n: "Mona A.", t: "Gold", p: "12,450", pill: "bg-amber-100 text-amber-700" },
-        { n: "Karim S.", t: "Silver", p: "6,210", pill: "bg-slate-100 text-slate-600" },
-        { n: "Layla M.", t: "Gold", p: "11,080", pill: "bg-amber-100 text-amber-700" },
-      ].map((m) => (
-        <div key={m.n} className="flex items-center justify-between py-2.5 border-b border-black/[0.05] last:border-0">
-          <p className="text-[13px] text-[var(--ink)]">{m.n}</p>
-          <div className="flex items-center gap-2.5">
-            <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-medium ${m.pill}`}>{m.t}</span>
-            <p className="text-[12.5px] text-[var(--ink)] tabular-nums w-14 text-right">{m.p}</p>
-          </div>
-        </div>
-      ))}
-      <p className="text-[11px] text-[var(--ink-soft)] mt-3">Points land on Shopify profiles · redemptions mint discount codes</p>
-    </div>
-  );
-}
-
-/* ─── Pricing ─────────────────────────────────────────── */
-
-type NeedKey = "production" | "shopify" | "custom";
-const NEEDS: { key: NeedKey; label: string }[] = [
-  { key: "production", label: "Production & manufacturing" },
-  { key: "shopify", label: "Shopify sync & loyalty" },
-  { key: "custom", label: "Custom work included" },
-];
-
-interface Plan {
-  key: string; name: string; tagline: string;
-  base: number; perUser: number; cap?: number;
-  covers: NeedKey[]; features: string[];
-}
-
-const PLANS: Plan[] = [
-  {
-    key: "apprentice", name: "Apprentice", tagline: "For one person, starting out", base: 0, perUser: 0, cap: 1,
-    covers: [],
-    features: ["1 user, free forever", "Contacts, products & quotations", "Arabic & English", "Community help"],
-  },
-  {
-    key: "scribe", name: "Scribe", tagline: "For teams that make and sell", base: 900, perUser: 299,
-    covers: ["production"],
-    features: ["Everything in Apprentice", "Sales orders & invoicing", "Inventory, assets & ABC analysis", "Production planning & pattern making", "Reports & dashboards", "Email support"],
-  },
-  {
-    key: "temple", name: "Temple", tagline: "The whole house of records", base: 4999, perUser: 499,
-    covers: ["production", "shopify", "custom"],
-    features: ["Everything in Scribe", "Two-way Shopify sync", "Loyalty program & campaigns", "HR, quality & delivery modules", "Priority support, same-day", "One custom-build day, every month"],
-  },
-];
-
-function Pricing({ goAuth }: { goAuth: () => void }) {
-  const [users, setUsers] = useState(5);
-  const [yearly, setYearly] = useState(false);
-  const [needs, setNeeds] = useState<Set<NeedKey>>(new Set());
-
-  const recommended = useMemo(() => {
-    if (users === 1 && needs.size === 0) return "apprentice";
-    if (needs.has("shopify") || needs.has("custom")) return "temple";
-    return "scribe";
-  }, [users, needs]);
-
-  function toggleNeed(k: NeedKey) {
-    setNeeds((prev) => { const n = new Set(prev); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  }
-
-  return (
-    <div>
-      {/* Controls */}
-      <div className="mx-auto max-w-[760px] rounded-2xl border border-[var(--line)] bg-[var(--night-2)] p-6 sm:p-7 mb-12">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
-          <p className="text-[15px] text-[var(--moon)]">
-            <span className="text-[26px] align-middle tabular-nums mr-2" style={serif}>{users}</span>
-            {users === 1 ? "person uses THOTH" : "people use THOTH"}
-          </p>
-          <div className="flex items-center rounded-full border border-[var(--line)] p-1" role="group" aria-label="Billing period">
-            {[{ v: false, l: "Monthly" }, { v: true, l: "Yearly · 2 months free" }].map((o) => (
-              <button key={o.l} onClick={() => setYearly(o.v)}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-colors ${yearly === o.v ? "bg-[var(--gold)] text-[var(--gold-ink)]" : "text-[var(--moon-dim)] hover:text-[var(--moon)]"}`}>
-                {o.l}
-              </button>
-            ))}
-          </div>
-        </div>
-        <input type="range" min={1} max={40} value={users} onChange={(e) => setUsers(parseInt(e.target.value))}
-          className="lp-range w-full" aria-label="Team size"
-          style={{ ["--p" as string]: `${((users - 1) / 39) * 100}` }} />
-        <div className="flex justify-between text-[11px] text-[var(--moon-dim)] mt-1.5"><span>Just me</span><span>40 people</span></div>
-
-        <div className="flex flex-wrap gap-2 mt-6">
-          <span className="text-[12px] text-[var(--moon-dim)] py-1.5">We need:</span>
-          {NEEDS.map((n) => (
-            <button key={n.key} onClick={() => toggleNeed(n.key)} aria-pressed={needs.has(n.key)}
-              className={`px-3.5 py-1.5 rounded-full text-[12px] font-medium border transition-all ${
-                needs.has(n.key)
-                  ? "border-[var(--gold)] bg-[hsl(340_40%_55%/0.1)] text-[var(--gold)]"
-                  : "border-[var(--line)] text-[var(--moon-dim)] hover:text-[var(--moon)]"}`}>
-              {n.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Plans */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
-        {PLANS.map((p) => (
-          <PlanCard key={p.key} plan={p} users={users} yearly={yearly} needs={needs}
-            recommended={recommended === p.key} goAuth={goAuth} />
-        ))}
-        {/* Dynasty — custom */}
-        <motion.div
-          variants={scaleIn}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.3 }}
-          className="rounded-2xl border border-[var(--line)] bg-[var(--night-2)] p-6 flex flex-col"
-        >
-          <h3 className="text-[22px] text-[var(--moon)] mb-1" style={serif}>Dynasty</h3>
-          <p className="text-[12.5px] text-[var(--moon-dim)] mb-5">For groups, franchises & ambitions</p>
-          <p className="text-[30px] text-[var(--moon)] leading-none mb-1" style={serif}>Let's talk</p>
-          <p className="text-[12px] text-[var(--moon-dim)] mb-6">Your modules, your servers if you wish</p>
-          <ul className="space-y-2.5 text-[12.5px] text-[var(--moon-dim)] mb-6">
-            {["Unlimited users & branches", "Dedicated success engineer", "Anything custom — built in one day", "On-premise option"].map((f) => (
-              <li key={f} className="flex gap-2.5"><Check size={14} className="text-[var(--gold)] shrink-0 mt-0.5" />{f}</li>
-            ))}
-          </ul>
-          <a href="mailto:hello@thoth.app" className="mt-auto inline-flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--gold)] text-[var(--gold)] text-[13.5px] font-medium hover:bg-[hsl(340_40%_55%/0.08)] transition-colors">
-            Talk to the builders <ArrowRight size={14} />
-          </a>
-        </motion.div>
-      </div>
-
-      <p className="text-center text-[12px] text-[var(--moon-dim)] mt-8">
-        Prices in Egyptian pounds. Cancel anytime. Every plan speaks Arabic and English equally well.
-      </p>
-    </div>
-  );
-}
-
-function PlanCard({ plan, users, yearly, needs, recommended, goAuth }: {
-  plan: Plan; users: number; yearly: boolean; needs: Set<NeedKey>; recommended: boolean; goAuth: () => void;
+function Magnetic({ children, className = "", onClick, primary }: {
+  children: React.ReactNode; className?: string; onClick?: () => void; primary?: boolean;
 }) {
-  const overCap = plan.cap !== undefined && users > plan.cap;
-  const missing = [...needs].filter((n) => !plan.covers.includes(n));
-  const unfit = overCap || missing.length > 0;
-  const billedUsers = plan.cap ? Math.min(users, plan.cap) : users;
-  const monthly = plan.base + plan.perUser * billedUsers;
-  const effective = yearly ? Math.round(monthly * 10 / 12) : monthly;
-  const shown = useEasedNumber(effective);
-  const perHead = billedUsers > 0 ? Math.round(effective / billedUsers) : 0;
+  const ref = useRef<HTMLButtonElement>(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const sx = useSpring(x, { stiffness: 250, damping: 18 });
+  const sy = useSpring(y, { stiffness: 250, damping: 18 });
+
+  function move(e: React.MouseEvent) {
+    const r = ref.current!.getBoundingClientRect();
+    x.set((e.clientX - (r.left + r.width / 2)) * 0.32);
+    y.set((e.clientY - (r.top + r.height / 2)) * 0.32);
+  }
+  function leave() { x.set(0); y.set(0); }
 
   return (
-    <motion.div
-      variants={scaleIn}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.3 }}
-      whileHover={{ y: -4, transition: { duration: 0.25, ease: EASE_OUT_QUINT } }}
-      className={`relative rounded-2xl p-6 flex flex-col border bg-[var(--night-2)] transition-shadow duration-500 ${
-        recommended ? "border-[var(--gold)] shadow-[0_24px_60px_-18px_hsl(340_40%_55%/0.25)]" : "border-[var(--line)]"} ${
-        unfit ? "opacity-55" : "opacity-100"}`}
+    <motion.button
+      ref={ref}
+      onMouseMove={move}
+      onMouseLeave={leave}
+      onClick={onClick}
+      style={{ x: sx, y: sy }}
+      whileTap={{ scale: 0.96 }}
+      className={
+        "group relative inline-flex items-center gap-2.5 rounded-full px-7 py-3.5 text-[19px] font-bold transition-shadow " +
+        (primary
+          ? "text-[var(--cream)] shadow-[0_10px_30px_-8px_rgba(58,125,122,0.6)] hover:shadow-[0_16px_40px_-8px_rgba(58,125,122,0.7)]"
+          : "text-[var(--ink)]") +
+        " " + className
+      }
     >
-      {recommended && (
-        <span className="absolute -top-3 left-6 text-[11px] font-semibold px-3 py-1 rounded-full bg-[var(--gold)] text-[var(--gold-ink)]">
-          Best for your {users === 1 ? "one" : users}
-        </span>
-      )}
-      <h3 className="text-[22px] text-[var(--moon)] mb-1" style={serif}>{plan.name}</h3>
-      <p className="text-[12.5px] text-[var(--moon-dim)] mb-5">{plan.tagline}</p>
-
-      <div className="mb-1 flex items-baseline gap-1.5">
-        <span className="text-[34px] leading-none text-[var(--moon)] tabular-nums" style={serif}>
-          {plan.base === 0 && plan.perUser === 0 ? "0" : egp(shown)}
-        </span>
-        <span className="text-[13px] text-[var(--moon-dim)]">EGP / month</span>
-      </div>
-      <p className="text-[11.5px] text-[var(--moon-dim)] mb-5 min-h-[17px]">
-        {plan.perUser > 0
-          ? <>={egp(plan.base)} base + {egp(plan.perUser)} × {billedUsers} {billedUsers === 1 ? "person" : "people"} · ≈{egp(perHead)}/person{yearly ? " · billed yearly" : ""}</>
-          : plan.cap === 1 ? "One seat, zero pounds" : ""}
-      </p>
-
-      <ul className="space-y-2.5 text-[12.5px] text-[var(--moon-dim)] mb-6">
-        {plan.features.map((f) => (
-          <li key={f} className="flex gap-2.5"><Check size={14} className="text-[var(--gold)] shrink-0 mt-0.5" />{f}</li>
-        ))}
-        {missing.map((m) => (
-          <li key={m} className="flex gap-2.5 text-[hsl(4_60%_48%)]">
-            <Minus size={14} className="shrink-0 mt-0.5" />No {NEEDS.find((n) => n.key === m)?.label.toLowerCase()}
-          </li>
-        ))}
-        {overCap && (
-          <li className="flex gap-2.5 text-[hsl(4_60%_48%)]"><Minus size={14} className="shrink-0 mt-0.5" />Limited to 1 user — you need {users}</li>
-        )}
-      </ul>
-
-      <button onClick={goAuth}
-        className={`mt-auto h-11 rounded-xl text-[13.5px] font-medium transition-all ${
-          recommended
-            ? "bg-[var(--gold)] text-[var(--gold-ink)] hover:brightness-110"
-            : "border border-[var(--line)] text-[var(--moon)] hover:border-[var(--moon-dim)]"}`}>
-        {plan.base === 0 ? "Start free" : `Start with ${plan.name}`}
-      </button>
-    </motion.div>
+      {children}
+    </motion.button>
   );
 }
 
-/* ─── FAQ ─────────────────────────────────────────────── */
+// ─── Floating module card (hero visual) ──────────────────
 
-const FAQS = [
-  { q: "What exactly is THOTH?", a: "A business operating system: sales, quotations, production, inventory, Shopify, loyalty, HR, quality, delivery and analytics in one place — instead of seven spreadsheets and three apps. You run your day inside it; it writes the records for you." },
-  { q: "Is Arabic really first-class?", a: "Yes — every screen, every field, every report exists in Arabic and English. Not a translation layer bolted on later; both languages were in the first commit." },
-  { q: "Can it import my Shopify store?", a: "Connect your store in five minutes — no developer needed. Products, orders, customers and stock levels flow in (and back out, if you choose). You decide per data type: import, export, two-way, or off." },
-  { q: 'What does "custom in one day" mean?', a: "Tell us what your business does differently — a field, a workflow, a report, a whole module. Our engineers reshape THOTH around it and ship it to your workspace within one working day. Temple plans include one such day every month." },
-  { q: "What happens when I outgrow the free plan?", a: "Your data stays exactly where it is. Add a second user and pick a plan — the calculator above does the honest math, including the per-person cost." },
-  { q: "Where does my data live?", a: "Encrypted, in dedicated cloud infrastructure, isolated per workspace. Dynasty plans can run on your own servers." },
+interface FloatCard {
+  label: string; icon: React.ElementType; tint: string;
+  x: string; y: string; rot: number; delay: number; scale?: number;
+}
+
+const FLOAT_CARDS: FloatCard[] = [
+  { label: "Sales", icon: ShoppingBag, tint: "var(--teal)", x: "2%", y: "8%", rot: -6, delay: 0 },
+  { label: "Production", icon: Boxes, tint: "var(--purple)", x: "62%", y: "2%", rot: 5, delay: 0.4 },
+  { label: "Inventory", icon: Truck, tint: "var(--teal-deep)", x: "70%", y: "44%", rot: -4, delay: 0.8 },
+  { label: "Finance", icon: Wallet, tint: "var(--purple-deep)", x: "0%", y: "52%", rot: 7, delay: 1.2 },
+  { label: "Analytics", icon: LineChart, tint: "var(--teal)", x: "30%", y: "70%", rot: -3, delay: 0.6, scale: 0.92 },
 ];
 
-function FAQ() {
-  const [open, setOpen] = useState<number | null>(0);
+function HeroStage() {
   return (
-    <div className="mx-auto max-w-[680px]">
-      {FAQS.map((f, i) => (
-        <div key={f.q} className="border-b border-black/[0.08]">
-          <button onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}
-            className="w-full flex items-center justify-between gap-4 py-5 text-left">
-            <span className="text-[16px] text-[var(--ink)]" style={serif}>{f.q}</span>
-            <ChevronDown size={16} className={`text-[var(--ink-soft)] shrink-0 transition-transform duration-300 ${open === i ? "rotate-180" : ""}`} />
-          </button>
-          <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${open === i ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-            <div className="overflow-hidden">
-              <p className="pb-5 text-[14px] leading-relaxed text-[var(--ink-soft)] max-w-[60ch]">{f.a}</p>
-            </div>
-          </div>
-        </div>
+    <div className="relative w-full h-[400px] sm:h-[460px]">
+      {/* central pulsing core */}
+      <motion.div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[180px] h-[180px] rounded-[34px] flex flex-col items-center justify-center text-center"
+        style={{ background: "var(--ink)", boxShadow: "0 30px 60px -20px rgba(45,49,57,0.55)" }}
+        initial={{ scale: 0.6, opacity: 0, rotate: -8 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}
+      >
+        <motion.div animate={{ rotate: [0, 3, -3, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}>
+          <Ibis size={48} />
+        </motion.div>
+        <span className="mt-2 text-[var(--cream)] text-[15px] tracking-[0.32em]" style={display}>THOTH</span>
+        <span className="text-[var(--ink-soft)] text-[12px] tracking-[0.2em] mt-0.5" style={body}>YOUR OS</span>
+      </motion.div>
+
+      {/* orbit ring */}
+      <motion.div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[330px] h-[330px] rounded-full border border-dashed border-[var(--teal)]/30"
+        animate={{ rotate: 360 }}
+        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+      />
+
+      {FLOAT_CARDS.map((c) => (
+        <motion.div
+          key={c.label}
+          className="absolute"
+          style={{ left: c.x, top: c.y }}
+          initial={{ opacity: 0, scale: 0.5, y: 30 }}
+          animate={{ opacity: 1, scale: c.scale ?? 1, y: 0 }}
+          transition={{ duration: 0.7, ease: EASE, delay: 0.5 + c.delay * 0.3 }}
+        >
+          <motion.div
+            animate={{ y: [0, -10, 0], rotate: [c.rot, c.rot + 2, c.rot] }}
+            transition={{ duration: 4 + c.delay, repeat: Infinity, ease: "easeInOut", delay: c.delay }}
+            whileHover={{ scale: 1.08, rotate: 0, transition: { duration: 0.25 } }}
+            className="flex items-center gap-2.5 bg-[var(--paper)] rounded-2xl pl-2.5 pr-4 py-2.5 cursor-default"
+            style={{ boxShadow: "0 16px 34px -14px rgba(45,49,57,0.32)" }}
+          >
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: c.tint }}>
+              <c.icon size={17} className="text-white" />
+            </span>
+            <span className="text-[19px] font-bold text-[var(--ink)] leading-none" style={body}>{c.label}</span>
+          </motion.div>
+        </motion.div>
       ))}
     </div>
   );
 }
 
-/* ─── Page ────────────────────────────────────────────── */
+// ─── Background floating orbs ─────────────────────────────
 
-const TOUR_TABS = [
-  { key: "work", label: "Orders & work", icon: Hammer, blurb: "Quotation → sales order → production → delivery. One thread, never dropped.", mock: TourWork },
-  { key: "inventory", label: "Inventory & assets", icon: Boxes, blurb: "Stock that counts itself: ABC classes, reorder alerts, asset depreciation.", mock: TourInventory },
-  { key: "shopify", label: "Shopify sync", icon: ShoppingBag, blurb: "Your store and your back office, finally telling the same story — both ways.", mock: TourShopify },
-  { key: "loyalty", label: "Loyalty", icon: Gift, blurb: "Points, tiers and campaigns that show up right on the customer's Shopify profile.", mock: TourLoyalty },
+function Orbs() {
+  const blobs = [
+    { c: "var(--mint)", s: 480, x: "-12%", y: "-10%", d: 0 },
+    { c: "rgba(120,103,140,0.18)", s: 420, x: "72%", y: "6%", d: 2 },
+    { c: "rgba(58,125,122,0.14)", s: 520, x: "50%", y: "60%", d: 4 },
+  ];
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {blobs.map((b, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full blur-[80px]"
+          style={{ width: b.s, height: b.s, left: b.x, top: b.y, background: b.c }}
+          animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0], scale: [1, 1.08, 0.96, 1] }}
+          transition={{ duration: 18 + i * 4, repeat: Infinity, ease: "easeInOut", delay: b.d }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Marquee ─────────────────────────────────────────────
+
+const MARQUEE = [
+  "Sales", "Quotations", "Production", "Inventory", "Assets", "Finance",
+  "HR", "Loyalty", "POS", "Analytics", "Purchasing", "Delivery", "CRM", "Shopify",
 ];
 
-const ACTS = [
-  {
-    n: "I", icon: PenLine, title: "He invented writing.",
-    sub: "THOTH writes everything down",
-    body: "Every quotation, site visit, measurement and promise becomes a record the moment it happens — in Arabic, in English, on any phone. Nothing lives in someone's head anymore.",
-  },
-  {
-    n: "II", icon: Scale, title: "He kept the accounts of the gods.",
-    sub: "THOTH counts everything",
-    body: "Stock value to the pound. Asset depreciation to the month. Payments, points, payroll hours. The numbers reconcile themselves while you sleep.",
-  },
-  {
-    n: "III", icon: Eye, title: "He recorded the judgement.",
-    sub: "THOTH helps you decide",
-    body: "Dashboards that surface the slow-moving stock, the late order, the customer drifting away — before they cost you. The verdict, every morning, in one glance.",
-  },
+function Marquee() {
+  return (
+    <div className="relative overflow-hidden py-5 bg-[var(--ink)] -rotate-1 scale-105">
+      <motion.div
+        className="flex gap-8 whitespace-nowrap"
+        animate={{ x: ["0%", "-50%"] }}
+        transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
+      >
+        {[...MARQUEE, ...MARQUEE].map((m, i) => (
+          <span key={i} className="inline-flex items-center gap-8 text-[26px] text-[var(--cream)]/80" style={display}>
+            {m}
+            <Sparkles size={15} className="text-[var(--teal)]" />
+          </span>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
+// ─── Powers (the myth, joyfully) ─────────────────────────
+
+const POWERS = [
+  { k: "Writing", sub: "Records", icon: Boxes, tint: "var(--teal)", copy: "Every quote, order and product — captured the moment it happens. Name them your way." },
+  { k: "Counting", sub: "Accounts", icon: Wallet, tint: "var(--purple)", copy: "Money in, money out, stock and assets. The numbers add up while you sleep." },
+  { k: "Judgement", sub: "Analytics", icon: Gauge, tint: "var(--ink)", copy: "Live dashboards that tell you what to do next — not just what already happened." },
 ];
+
+// ─── Pricing ─────────────────────────────────────────────
+
+const PLANS = [
+  { name: "Free", price: "0", unit: "forever", tint: "var(--ink)", feats: ["1 user", "Core modules", "Demo data"], cta: "Start free" },
+  { name: "Scribe", price: "900", unit: "EGP / mo", tint: "var(--teal)", feats: ["Unlimited modules", "Custom code formats", "Email support"], cta: "Choose Scribe", pop: true },
+  { name: "Temple", price: "4,999", unit: "EGP / mo", tint: "var(--purple)", feats: ["Everything in Scribe", "Priority support", "1-day custom builds"], cta: "Choose Temple" },
+];
+
+// ═══════════════════════════════════════════════════════════
+// Page
+// ═══════════════════════════════════════════════════════════
 
 export default function Landing() {
   const [, navigate] = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [tab, setTab] = useState("work");
-  const reduced = useReducedMotion();
-
-  const progressRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 24);
-      if (progressRef.current) {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        progressRef.current.style.transform = `scaleX(${max > 0 ? window.scrollY / max : 0})`;
-      }
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const goAuth = () => navigate("/auth");
-  const activeTour = TOUR_TABS.find((t) => t.key === tab) ?? TOUR_TABS[0];
-  const ActiveMock = activeTour.mock;
+  const { scrollYProgress } = useScroll();
+  const barScale = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
-  const heroWords = "Five thousand years of bookkeeping experience.".split(" ");
+  const heroStagger: Variants = {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
+  };
+  const heroItem: Variants = {
+    hidden: { opacity: 0, y: 26 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: EASE } },
+  };
 
   return (
-    <div style={{ ...LP_VARS, fontFamily: "'DM Sans', sans-serif" }} className="bg-[var(--night)] text-[var(--moon)] [text-rendering:optimizeLegibility]">
-      <style>{`
-        .lp-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 99px;
-          background: linear-gradient(to right, var(--gold) 0%, var(--gold) calc(var(--p, 10) * 1%), hsl(120 8% 84%) calc(var(--p, 10) * 1%)); outline: none; }
-        .lp-range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-          background: var(--gold); border: 3px solid hsl(42 35% 97%); box-shadow: 0 0 0 1.5px var(--gold); cursor: grab; }
-        .lp-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--gold); border: 3px solid hsl(42 35% 97%); box-shadow: 0 0 0 1.5px var(--gold); cursor: grab; }
+    <div style={{ ...VARS, ...body }} className="min-h-screen bg-[var(--cream)] text-[var(--ink)] overflow-x-hidden">
+      {/* scroll progress */}
+      <motion.div className="fixed top-0 left-0 right-0 h-[3px] origin-left z-50" style={{ scaleX: barScale, background: "linear-gradient(90deg,var(--teal),var(--purple))" }} />
 
-        .lp-ticker { animation: lpTick 36s linear infinite; }
-        .lp-ticker:hover { animation-play-state: paused; }
-        @keyframes lpTick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-
-        .lp-glyph path { animation: lpBreathe var(--dur, 10s) ease-in-out var(--delay, 0s) infinite alternate; transform-origin: center; transform-box: fill-box; }
-        @keyframes lpBreathe { from { transform: translateY(-7px) rotate(-2.5deg); opacity: 0.55; }
-                               to { transform: translateY(7px) rotate(2.5deg); opacity: 1; } }
-
-        .lp-ibis-glide { animation: lpGlide 34s linear 3s infinite; opacity: 0; will-change: transform; }
-        @keyframes lpGlide {
-          0% { transform: translate(-8vw, 0); opacity: 0; }
-          6% { opacity: 1; }
-          25% { transform: translate(28vw, -26px); }
-          50% { transform: translate(56vw, 10px); }
-          75% { transform: translate(82vw, -18px); }
-          94% { opacity: 1; }
-          100% { transform: translate(110vw, 0); opacity: 0; }
-        }
-
-        .lp-bob { animation: lpBob 5.5s ease-in-out infinite alternate; }
-        @keyframes lpBob { from { transform: translateY(0); } to { transform: translateY(-9px); } }
-
-        .lp-progress { transform: scaleX(0); transform-origin: left; transition: transform 80ms linear; }
-
-        .lp-cta { transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.2s, box-shadow 0.25s; }
-        .lp-cta:hover { transform: translateY(-2px) scale(1.025); box-shadow: 0 14px 32px -10px hsl(340 40% 55% / 0.45); }
-        .lp-cta:active { transform: translateY(0) scale(0.97); }
-
-        .lp-logo svg { transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
-        .lp-logo:hover svg { transform: rotate(-8deg) translateY(-1px); }
-
-        @media (prefers-reduced-motion: reduce) {
-          .lp-ticker, .lp-glyph path, .lp-ibis-glide, .lp-bob { animation: none; }
-          .lp-ibis-glide { opacity: 0; }
-          .lp-cta, .lp-cta:hover { transform: none; }
-        }
-
-        /* ─── Dark mode overrides ─────────────────────────── */
-        .dark {
-          --night: hsl(220 14% 12%);
-          --night-2: hsl(220 14% 16%);
-          --night-3: hsl(220 14% 19%);
-          --line: hsl(220 10% 22%);
-          --moon: hsl(42 30% 93%);
-          --moon-dim: hsl(220 8% 58%);
-          --gold: hsl(340 35% 65%);
-          --gold-ink: hsl(220 14% 12%);
-          --gold-deep: hsl(340 38% 52%);
-          --lapis: hsl(200 40% 62%);
-          --cream: hsl(220 14% 16%);
-          --ink: hsl(42 30% 93%);
-          --ink-soft: hsl(220 8% 58%);
-        }
-        .dark .lp-header-scrolled {
-          background: hsl(220 14% 12% / 0.88) !important;
-        }
-        .dark .lp-mock-card {
-          background: hsl(220 14% 16%) !important;
-          border-color: hsl(220 10% 22%) !important;
-        }
-        .dark .lp-mock-inner {
-          background: hsl(220 14% 12%) !important;
-          border-color: hsl(220 10% 22%) !important;
-        }
-        .dark .lp-tour-card {
-          background: hsl(220 14% 16%) !important;
-          border-color: hsl(220 10% 22%) !important;
-        }
-        .dark .lp-prog-bar {
-          background: hsl(220 10% 22%) !important;
-        }
-        .dark .lp-prog-fill {
-          background: hsl(340 35% 65%) !important;
-        }
-        .dark .lp-white-card {
-          background: hsl(220 14% 18%) !important;
-          border-color: hsl(220 10% 24%) !important;
-          color: hsl(42 30% 93%);
-        }
-        .dark .lp-white-card-p {
-          color: hsl(220 8% 58%);
-        }
-        .dark .lp-white-card-p strong,
-        .dark .lp-white-card-p span:not(.lp-white-card-p) {
-          color: hsl(42 30% 93%);
-        }
-        .dark .border-black\/\[0\.07\] {
-          border-color: hsl(220 10% 24%) !important;
-        }
-        .dark .border-black\/\[0\.08\] {
-          border-color: hsl(220 10% 24%) !important;
-        }
-      `}</style>
-
-      {/* ── Nav ──────────────────────────────────────── */}
-      <header className={`fixed top-0 inset-x-0 z-40 transition-all duration-500 ${scrolled ? "lp-header-scrolled bg-[hsl(42_35%_97%/0.88)] backdrop-blur-md border-b border-[var(--line)]" : ""}`}>
-        <div ref={progressRef} className="lp-progress absolute top-0 inset-x-0 h-[2.5px] bg-[var(--gold)]" aria-hidden />
-        <nav className="mx-auto max-w-[1180px] px-6 h-[68px] flex items-center justify-between">
-          <a href="#top" className="lp-logo flex items-center gap-2.5 text-[var(--moon)]">
-            <IbisMark size={28} stroke="var(--gold)" />
-            <span className="text-[19px] tracking-[0.12em]" style={serif}>THOTH</span>
-          </a>
-          <div className="hidden md:flex items-center gap-7 text-[13.5px] text-[var(--moon-dim)]">
-            <a href="#story" className="hover:text-[var(--moon)] transition-colors">The story</a>
-            <a href="#product" className="hover:text-[var(--moon)] transition-colors">Product</a>
-            <a href="#pricing" className="hover:text-[var(--moon)] transition-colors">Pricing</a>
-            <a href="#team" className="hover:text-[var(--moon)] transition-colors">Team</a>
-            <a href="#faq" className="hover:text-[var(--moon)] transition-colors">FAQ</a>
-          </div>
-          <div className="hidden md:flex items-center gap-3">
-            <ThemeToggle />
-            <button onClick={goAuth} className="text-[13.5px] text-[var(--moon-dim)] hover:text-[var(--moon)] transition-colors px-2 py-2">Sign in</button>
-            <button onClick={goAuth} className="lp-cta h-10 px-5 rounded-xl bg-[var(--gold)] text-[var(--gold-ink)] text-[13.5px] font-semibold hover:brightness-110">
-              Begin free
+      {/* ── Nav ─────────────────────────────────────────── */}
+      <header className="fixed top-0 inset-x-0 z-40">
+        <div className="max-w-[1200px] mx-auto px-5 mt-4">
+          <motion.nav
+            initial={{ opacity: 0, y: -18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: EASE }}
+            className="flex items-center justify-between rounded-full bg-[var(--paper)]/80 backdrop-blur-xl border border-[var(--ink)]/8 pl-5 pr-2 py-2 shadow-[0_8px_30px_-12px_rgba(45,49,57,0.18)]"
+          >
+            <a href="/" className="flex items-center gap-2">
+              <Ibis size={24} />
+              <span className="text-[22px] tracking-[0.14em] leading-none" style={display}>THOTH</span>
+            </a>
+            <div className="hidden md:flex items-center gap-7 text-[18px] font-semibold text-[var(--ink-soft)]">
+              {["Powers", "Product", "Pricing"].map((l) => (
+                <a key={l} href={`#${l.toLowerCase()}`} className="hover:text-[var(--ink)] transition-colors">{l}</a>
+              ))}
+            </div>
+            <button onClick={goAuth} className="rounded-full bg-[var(--ink)] text-[var(--cream)] text-[17px] font-bold px-5 py-2.5 hover:bg-[var(--teal)] transition-colors">
+              Sign in
             </button>
-          </div>
-          <button className="md:hidden p-2 text-[var(--moon)]" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu size={22} /></button>
-        </nav>
+          </motion.nav>
+        </div>
       </header>
 
-      {/* Mobile menu */}
-      <AnimatePresence>
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-[var(--night)] flex flex-col p-6"
-          >
-            <div className="flex items-center justify-between mb-10">
-              <span className="flex items-center gap-2.5"><IbisMark size={26} stroke="var(--gold)" /><span className="text-[18px] tracking-[0.12em]" style={serif}>THOTH</span></span>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <button onClick={() => setMenuOpen(false)} aria-label="Close menu" className="p-2"><X size={22} /></button>
-              </div>
-            </div>
-            <motion.div variants={staggerContainer} initial="hidden" animate="visible">
-              {["story", "product", "pricing", "team", "faq"].map((id) => (
-                <motion.a key={id} variants={fadeUp} href={`#${id}`} onClick={() => setMenuOpen(false)}
-                  className="py-4 text-[26px] capitalize border-b border-[var(--line)] block" style={serif}>{id === "story" ? "The story" : id}</motion.a>
-              ))}
+      {/* ── Hero ────────────────────────────────────────── */}
+      <section className="relative pt-[150px] pb-20">
+        <Orbs />
+        <div className="relative max-w-[1200px] mx-auto px-5 grid lg:grid-cols-2 gap-10 items-center">
+          <motion.div variants={heroStagger} initial="hidden" animate="show">
+            <motion.div variants={heroItem} className="inline-flex items-center gap-2 rounded-full bg-[var(--mint)] text-[var(--teal-deep)] px-4 py-1.5 text-[16px] font-bold mb-6">
+              <Zap size={14} /> One system for the whole business
             </motion.div>
-            <button onClick={goAuth} className="mt-8 h-12 rounded-xl bg-[var(--gold)] text-[var(--gold-ink)] text-[15px] font-semibold">Begin free</button>
-            <button onClick={goAuth} className="mt-3 h-12 rounded-xl border border-[var(--line)] text-[15px]">Sign in</button>
+            <motion.h1 variants={heroItem} className="text-[clamp(3rem,7vw,5.6rem)] leading-[0.95] tracking-[-0.01em]" style={display}>
+              Run anything.<br />
+              <span className="relative inline-block">
+                <span className="relative z-10 text-[var(--teal)]">Joyfully.</span>
+                <motion.span
+                  className="absolute -bottom-1 left-0 h-[14px] rounded-full -z-0"
+                  style={{ background: "var(--mint)" }}
+                  initial={{ width: 0 }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 0.8, ease: EASE, delay: 1 }}
+                />
+              </span>
+            </motion.h1>
+            <motion.p variants={heroItem} className="mt-6 text-[22px] leading-[1.25] text-[var(--ink-soft)] max-w-[40ch] font-medium">
+              THOTH is the business operating system that shapes itself around <em className="text-[var(--purple)] not-italic font-bold">your</em> trade — your words, your codes, your workflow. Sales to production to payroll, in one playful place.
+            </motion.p>
+            <motion.div variants={heroItem} className="mt-9 flex flex-wrap items-center gap-3">
+              <Magnetic primary onClick={goAuth} className="bg-[var(--teal)]">
+                Start free <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+              </Magnetic>
+              <Magnetic onClick={() => document.getElementById("product")?.scrollIntoView({ behavior: "smooth" })} className="bg-[var(--paper)] border border-[var(--ink)]/10">
+                See it move
+              </Magnetic>
+            </motion.div>
+            <motion.div variants={heroItem} className="mt-8 flex items-center gap-2 text-[17px] font-semibold text-[var(--ink-soft)]">
+              <div className="flex -space-x-1.5">
+                {["var(--teal)", "var(--purple)", "var(--ink)"].map((c) => (
+                  <span key={c} className="w-6 h-6 rounded-full border-2 border-[var(--cream)]" style={{ background: c }} />
+                ))}
+              </div>
+              Bilingual EN / AR · built in Egypt
+            </motion.div>
           </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* ── Hero ─────────────────────────────────────── */}
-      <section id="top" className="relative overflow-hidden pt-[150px] pb-24 sm:pb-32">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 0.28, scale: 1 }}
-          transition={{ duration: 1.2, ease: EASE_OUT_QUINT }}
-          className="absolute left-1/2 -translate-x-1/2 top-[36px] w-[560px] max-w-[88vw] pointer-events-none"
-        >
-          <MoonDisc className="w-full" />
-        </motion.div>
-        <GlyphField />
+          <HeroStage />
+        </div>
+      </section>
 
-        <div className="relative mx-auto max-w-[900px] px-6 text-center">
-          <Reveal delay={0.1}>
-            <p className="text-[15px] text-[var(--gold)] mb-6" dir="rtl" lang="ar">
-              تحوت — كاتب الآلهة وحافظ الحسابات
-            </p>
+      <Marquee />
+
+      {/* ── Powers ──────────────────────────────────────── */}
+      <section id="powers" className="py-24 sm:py-32">
+        <div className="max-w-[1200px] mx-auto px-5">
+          <Reveal>
+            <p className="text-[19px] font-bold text-[var(--teal)] mb-3">THE THREE POWERS OF THOTH</p>
+            <h2 className="text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.02] max-w-[18ch]" style={display}>
+              The scribe-god's job, rebuilt for your business.
+            </h2>
           </Reveal>
-
-          <h1 className="text-[clamp(2.5rem,6.2vw,4.9rem)] leading-[1.06] [text-wrap:balance] mb-7" style={{ ...serif, letterSpacing: "-0.02em" }}>
-            {heroWords.map((w, i) => (
-              <motion.span
-                key={i}
-                initial={reduced ? false : { opacity: 0, y: 20, filter: "blur(4px)" }}
-                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 0.6, ease: EASE_OUT_QUINT, delay: 0.18 + i * 0.065 }}
-                className="inline-block mr-[0.26em]"
-              >
-                {w}
-              </motion.span>
+          <div className="mt-14 grid md:grid-cols-3 gap-5">
+            {POWERS.map((p, i) => (
+              <Reveal key={p.k} delay={i * 0.12}>
+                <motion.div
+                  whileHover={{ y: -8 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="h-full rounded-[28px] bg-[var(--paper)] p-7 border border-[var(--ink)]/6 shadow-[0_14px_40px_-22px_rgba(45,49,57,0.3)]"
+                >
+                  <span className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6" style={{ background: p.tint }}>
+                    <p.icon size={24} className="text-white" />
+                  </span>
+                  <div className="flex items-baseline gap-2.5">
+                    <h3 className="text-[34px] leading-none" style={display}>{p.k}</h3>
+                    <span className="text-[16px] font-bold text-[var(--ink-soft)] uppercase tracking-wide">{p.sub}</span>
+                  </div>
+                  <p className="mt-3 text-[19px] leading-[1.25] text-[var(--ink-soft)] font-medium">{p.copy}</p>
+                </motion.div>
+              </Reveal>
             ))}
-          </h1>
+          </div>
+        </div>
+      </section>
 
-          <Reveal delay={0.7}>
-            <p className="text-[17px] leading-relaxed text-[var(--moon-dim)] max-w-[58ch] mx-auto mb-10">
-              THOTH is the business operating system named for the god who wrote, counted and remembered
-              everything. Sales, production, inventory, Shopify, loyalty and people — one system,
-              two languages, built in Egypt for fashion brands and garment manufacturers.
+      {/* ── Make it yours (genericization story) ─────────── */}
+      <section id="product" className="py-24 sm:py-28 bg-[var(--ink)] text-[var(--cream)] relative overflow-hidden">
+        <div className="max-w-[1200px] mx-auto px-5 grid lg:grid-cols-2 gap-14 items-center relative">
+          <Reveal>
+            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--teal)]/20 text-[var(--mint)] px-4 py-1.5 text-[16px] font-bold mb-6">
+              <Globe size={14} /> Industry-agnostic by design
+            </div>
+            <h2 className="text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.02]" style={display}>
+              It learns to speak your trade.
+            </h2>
+            <p className="mt-5 text-[21px] leading-[1.3] text-[var(--cream)]/70 font-medium max-w-[44ch]">
+              Fashion atelier, furniture workshop, retail chain or a studio of one — onboarding tailors the modules, the vocabulary and the code formats to you. Call them garments or gadgets; THOTH adapts.
             </p>
+            <div className="mt-8 grid grid-cols-2 gap-3 max-w-[440px]">
+              {[
+                "Your module names", "Your code formats",
+                "Your production stages", "Your starter data",
+              ].map((f, i) => (
+                <Reveal key={f} delay={i * 0.08}>
+                  <div className="flex items-center gap-2.5 text-[18px] font-semibold">
+                    <span className="w-6 h-6 rounded-full bg-[var(--teal)] flex items-center justify-center shrink-0"><Check size={13} /></span>
+                    {f}
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </Reveal>
 
-          <Reveal delay={0.85}>
-            <div className="flex flex-wrap items-center justify-center gap-3.5 mb-20">
-              <button onClick={goAuth} className="lp-cta h-12 px-7 rounded-xl bg-[var(--gold)] text-[var(--gold-ink)] text-[15px] font-semibold hover:brightness-110 inline-flex items-center gap-2">
-                Start free — one user, forever <ArrowRight size={16} />
-              </button>
-              <a href="#pricing" className="h-12 px-6 rounded-xl border border-[var(--line)] text-[15px] text-[var(--moon)] hover:border-[var(--moon-dim)] transition-colors inline-flex items-center">
-                Do the pricing math
-              </a>
+          {/* Code-format playground mock */}
+          <Reveal delay={0.15}>
+            <div className="rounded-[28px] border border-white/10 p-6 shadow-2xl" style={{ background: "#23262d" }}>
+              <p className="text-[15px] font-bold text-[var(--cream)]/50 mb-4 tracking-wide">YOUR CODE SYSTEM, LIVE</p>
+              {[
+                { label: "Quotation", code: "QA-12345", tint: "var(--teal)" },
+                { label: "Product", code: "FASH23400", tint: "var(--purple)" },
+                { label: "Asset", code: "AST-0001", tint: "var(--mint)", dark: true },
+              ].map((r, i) => (
+                <motion.div
+                  key={r.label}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: 0.2 + i * 0.15, duration: 0.5, ease: EASE }}
+                  className="flex items-center justify-between py-3.5 border-b border-white/8 last:border-0"
+                >
+                  <span className="text-[19px] font-semibold text-[var(--cream)]/80">{r.label}</span>
+                  <span className="font-mono text-[17px] px-3 py-1 rounded-lg" style={{ background: r.tint, color: r.dark ? "var(--ink)" : "white" }}>{r.code}</span>
+                </motion.div>
+              ))}
+              <p className="mt-4 text-[15px] text-[var(--cream)]/40 font-medium">Prefix · separator · digits · year · start — all yours.</p>
             </div>
           </Reveal>
         </div>
-
-        <HeroMock />
       </section>
 
-      {/* ── Ticker ───────────────────────────────────── */}
-      <div className="border-y border-[var(--line)] py-3.5 overflow-hidden" aria-hidden>
-        <div className="lp-ticker flex w-max whitespace-nowrap text-[13px] text-[var(--moon-dim)]">
-          {[0, 1].map((k) => (
-            <span key={k} className="flex">
-              {["Sales orders", "Quotations", "Production planning", "Pattern making", "Inventory", "ABC analysis", "Asset depreciation", "Shopify two-way sync", "Loyalty points", "HR & workforce", "Quality control", "Delivery & installation", "Executive analytics", "عربي · English"].map((s) => (
-                <span key={s} className="mx-6 flex items-center gap-6">{s}<span className="text-[var(--gold)]">·</span></span>
-              ))}
-            </span>
+      {/* ── Stats band ──────────────────────────────────── */}
+      <section className="py-20 bg-[var(--mint)]">
+        <div className="max-w-[1100px] mx-auto px-5 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {[
+            { n: 27, s: "+", l: "modules, one login" },
+            { n: 2, s: "", l: "languages, first-class" },
+            { n: 1, s: " day", l: "custom builds" },
+            { n: 100, s: "%", l: "yours to rename" },
+          ].map((st, i) => (
+            <Reveal key={st.l} delay={i * 0.1}>
+              <div className="text-[clamp(2.6rem,5vw,4rem)] leading-none text-[var(--teal-deep)]" style={display}>
+                <Counter to={st.n} suffix={st.s} />
+              </div>
+              <p className="mt-2 text-[18px] font-semibold text-[var(--ink-soft)]">{st.l}</p>
+            </Reveal>
           ))}
         </div>
-      </div>
-
-      {/* ── The story ────────────────────────────────── */}
-      <section id="story" className="py-28 sm:py-36">
-        <div className="mx-auto max-w-[1080px] px-6">
-          <Reveal>
-            <h2 className="text-[clamp(1.9rem,4vw,3rem)] leading-[1.12] [text-wrap:balance] max-w-[22ch]" style={{ ...serif, letterSpacing: "-0.015em" }}>
-              Five thousand years ago, every business in Egypt ran on him.
-            </h2>
-            <p className="text-[16px] text-[var(--moon-dim)] max-w-[56ch] mt-5 leading-relaxed">
-              Thoth — ibis-headed, moon-keeping — was the scribe of the gods: inventor of writing, keeper of
-              accounts, recorder of the final judgement. We took the job description literally.
-            </p>
-          </Reveal>
-
-          <motion.div
-            className="mt-20 space-y-20"
-            variants={staggerContainerSlow}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.15 }}
-          >
-            {ACTS.map((act, i) => (
-              <motion.div key={act.n} variants={fadeUp}
-                className={`flex flex-col md:flex-row gap-8 md:gap-14 items-start ${i % 2 === 1 ? "md:flex-row-reverse" : ""}`}>
-                <div className="flex items-start gap-6 md:w-[46%] shrink-0">
-                  <span className="text-[64px] leading-none text-[hsl(340_25%_80%)] select-none" style={serif}>{act.n}</span>
-                  <div className="pt-2">
-                    <p className="text-[22px] sm:text-[26px] leading-snug text-[var(--moon)]" style={serif}>{act.title}</p>
-                    <p className="text-[13px] text-[var(--gold)] mt-2 font-medium">{act.sub}</p>
-                  </div>
-                </div>
-                <div className="md:pt-3 flex gap-5">
-                  <act.icon size={20} className="text-[var(--gold)] shrink-0 mt-1" strokeWidth={1.5} />
-                  <p className="text-[15.5px] leading-relaxed text-[var(--moon-dim)] max-w-[48ch]">{act.body}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
       </section>
 
-      {/* ── Product tour (cream) ─────────────────────── */}
-      <section id="product" className="bg-[var(--cream)] text-[var(--ink)] py-24 sm:py-32">
-        <div className="mx-auto max-w-[1080px] px-6">
-          <Reveal>
-            <h2 className="text-[clamp(1.9rem,4vw,3rem)] leading-[1.12] [text-wrap:balance]" style={{ ...serif, letterSpacing: "-0.015em" }}>
-              One place to run the whole day.
-            </h2>
-            <p className="text-[16px] text-[var(--ink-soft)] max-w-[58ch] mt-4 leading-relaxed">
-              This is the actual product, not a brochure: the same cream-paper screens your team will
-              use tomorrow morning, on a laptop or a phone, in either language.
-            </p>
-          </Reveal>
-
-          <div className="mt-12 flex flex-wrap gap-2">
-            {TOUR_TABS.map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)} aria-pressed={tab === t.key}
-                className={`inline-flex items-center gap-2 px-4 h-10 rounded-full text-[13px] font-medium border transition-all ${
-                  tab === t.key ? "bg-[var(--ink)] text-[var(--cream)] border-[var(--ink)]" : "border-black/15 text-[var(--ink-soft)] hover:border-black/30"}`}>
-                <t.icon size={14} strokeWidth={1.75} /> {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-[1fr_1.25fr] gap-8 items-start">
-            <div className="md:pt-4">
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={tab}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.35, ease: EASE_OUT_QUINT }}
-                  className="text-[19px] leading-snug text-[var(--ink)] max-w-[30ch]"
-                  style={serif}
-                >
-                  {activeTour.blurb}
-                </motion.p>
-              </AnimatePresence>
-              <button onClick={goAuth} className="mt-7 inline-flex items-center gap-2 text-[14px] font-medium text-[hsl(340_38%_45%)] hover:gap-3 transition-all">
-                Try it with your own data <ArrowRight size={15} />
-              </button>
-            </div>
-            <div className="lp-tour-card rounded-2xl border border-black/[0.08] bg-[hsl(42_35%_97%)] p-4 sm:p-5 shadow-[0_24px_60px_-30px_hsl(220_12%_18%/0.25)] min-h-[300px]">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.35, ease: EASE_OUT_QUINT }}
-                >
-                  <ActiveMock />
-                </motion.div>
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* How to begin */}
-          <div className="mt-28">
-            <Reveal>
-              <h3 className="text-[clamp(1.5rem,3vw,2.2rem)]" style={{ ...serif, letterSpacing: "-0.01em" }}>Begin in an afternoon.</h3>
-            </Reveal>
-            <motion.div
-              className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8"
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.2 }}
-            >
-              {[
-                { n: "1", t: "Open your workspace", d: "Sign up free — no card, no call. Pick Arabic, English, or both." },
-                { n: "2", t: "Bring your data", d: "Connect Shopify and watch products, orders and customers import themselves. Or start from a CSV. Or start clean." },
-                { n: "3", t: "Run tomorrow inside it", d: "Take an order, send it to production, deliver it, get paid — THOTH writes the story as you work." },
-              ].map((s) => (
-                <motion.div key={s.n} variants={fadeUp} className="flex gap-4">
-                  <span className="w-9 h-9 rounded-full border border-black/20 flex items-center justify-center text-[15px] shrink-0" style={serif}>{s.n}</span>
-                  <div>
-                    <p className="text-[16px] font-medium mb-1.5">{s.t}</p>
-                    <p className="text-[13.5px] text-[var(--ink-soft)] leading-relaxed">{s.d}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── One-day promise (gold drench) ────────────── */}
-      <section className="bg-[var(--gold-deep)] text-[var(--gold-ink)] py-20 sm:py-24">
-        <div className="mx-auto max-w-[1080px] px-6 flex flex-col md:flex-row md:items-end gap-8 md:gap-16">
-          <Reveal className="md:flex-1">
-            <p className="text-[15px] mb-3 font-medium" dir="rtl" lang="ar">يُصمَّم على مقاسك</p>
-            <h2 className="text-[clamp(1.9rem,4.4vw,3.2rem)] leading-[1.1] [text-wrap:balance]" style={{ ...serif, letterSpacing: "-0.015em" }}>
-              Anything custom, built in one day.
-            </h2>
-          </Reveal>
-          <Reveal delay={0.1} className="md:w-[40%]">
-            <p className="text-[15.5px] leading-relaxed mb-6 text-[hsl(340_38%_88%)]">
-              A field your fashion brand needs. A report your accountant insists on. A whole workflow nobody
-              else has. Tell us in the morning — it's in your workspace by evening. That's not a roadmap
-              promise; it's how we work.
-            </p>
-            <a href="mailto:hello@thoth.app" className="lp-cta inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-[hsl(42_35%_97%)] text-[var(--gold-deep)] text-[14px] font-medium">
-              Tell us what you need <ArrowRight size={15} />
-            </a>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Pricing ──────────────────────────────────── */}
+      {/* ── Pricing ─────────────────────────────────────── */}
       <section id="pricing" className="py-24 sm:py-32">
-        <div className="mx-auto max-w-[1180px] px-6">
-          <Reveal>
-            <h2 className="text-[clamp(1.9rem,4vw,3rem)] leading-[1.12] text-center [text-wrap:balance]" style={{ ...serif, letterSpacing: "-0.015em" }}>
-              Pricing that does the math with you.
-            </h2>
-            <p className="text-[16px] text-[var(--moon-dim)] text-center max-w-[52ch] mx-auto mt-4 mb-14 leading-relaxed">
-              Slide to your team size, tell us what you need — the right plan steps forward
-              and shows its honest total.
-            </p>
+        <div className="max-w-[1100px] mx-auto px-5">
+          <Reveal className="text-center">
+            <h2 className="text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.02]" style={display}>Pricing that grows with you.</h2>
+            <p className="mt-3 text-[20px] font-medium text-[var(--ink-soft)]">Start free. Upgrade when the workshop hums.</p>
           </Reveal>
-          <Reveal delay={0.1}><Pricing goAuth={goAuth} /></Reveal>
-        </div>
-      </section>
-
-      {/* ── Team (cream) ─────────────────────────────── */}
-      <section id="team" className="bg-[var(--cream)] text-[var(--ink)] py-24 sm:py-28">
-        <div className="mx-auto max-w-[780px] px-6">
-          <Reveal>
-            <h2 className="text-[clamp(1.8rem,3.6vw,2.7rem)] leading-[1.15] [text-wrap:balance] mb-8" style={{ ...serif, letterSpacing: "-0.012em" }}>
-              Built in Cairo, by people who built the big ones.
-            </h2>
-            <div className="text-[16px] leading-[1.85] text-[var(--ink-soft)] space-y-5 [text-wrap:pretty]">
-              <p>
-                We are Egyptian engineers who spent years inside the world's largest ERP houses —
-                implementing them, extending them, and quietly collecting everything we'd do differently.
-                The systems were powerful; they were also foreign, in every sense. Wrong language, wrong
-                timezone, wrong assumptions about how a workshop in Sixth of October actually runs.
-              </p>
-              <p>
-                So we built the one we wished existed: international-grade engineering with a local soul.
-                Arabic that isn't an afterthought. Support in your working hours. Customization measured in
-                days, not quarters. The god of records would have insisted on nothing less.
-              </p>
-            </div>
-            <div className="mt-10 flex items-center gap-4">
-              <IbisMark size={34} stroke="var(--gold-deep)" />
-              <div>
-                <p className="text-[15px]" style={serif}>The THOTH team</p>
-                <p className="text-[12.5px] text-[var(--ink-soft)]">Cairo, Egypt · القاهرة</p>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── FAQ (cream continues) ────────────────────── */}
-      <section id="faq" className="bg-[var(--cream)] text-[var(--ink)] pb-28">
-        <div className="mx-auto max-w-[1080px] px-6">
-          <Reveal>
-            <h2 className="text-[clamp(1.6rem,3vw,2.2rem)] mb-10" style={{ ...serif, letterSpacing: "-0.01em" }}>Questions, answered.</h2>
-          </Reveal>
-          <Reveal delay={0.08}><FAQ /></Reveal>
-        </div>
-      </section>
-
-      {/* ── Final CTA ────────────────────────────────── */}
-      <section className="relative overflow-hidden py-28 sm:py-36 text-center">
-        <div className="absolute left-1/2 -translate-x-1/2 -bottom-[260px] w-[520px] opacity-[0.14] pointer-events-none" aria-hidden>
-          <MoonDisc className="w-full" />
-        </div>
-        <div className="relative mx-auto max-w-[640px] px-6">
-          <Reveal>
-            <h2 className="text-[clamp(2rem,4.6vw,3.4rem)] leading-[1.1] [text-wrap:balance] mb-6" style={{ ...serif, letterSpacing: "-0.015em" }}>
-              Let THOTH start writing.
-            </h2>
-            <p className="text-[16px] text-[var(--moon-dim)] mb-9">Free for one user. Five minutes to your first record.</p>
-            <button onClick={goAuth} className="lp-cta px-8 py-3.5 rounded-xl bg-[var(--gold)] text-[var(--gold-ink)] text-[15.5px] font-semibold hover:brightness-110 inline-flex items-center gap-2.5">
-              Open your workspace <ArrowRight size={17} />
-            </button>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Footer ───────────────────────────────────── */}
-      <footer className="border-t border-[var(--line)] py-14">
-        <div className="mx-auto max-w-[1180px] px-6">
-          <div className="flex flex-col lg:flex-row gap-12 lg:gap-20">
-            <div className="lg:w-[300px]">
-              <div className="flex items-center gap-2.5 mb-4">
-                <IbisMark size={26} stroke="var(--gold)" />
-                <span className="text-[17px] tracking-[0.12em]" style={serif}>THOTH</span>
-              </div>
-              <p className="text-[13px] text-[var(--moon-dim)] leading-relaxed max-w-[34ch]">
-                The business operating system named for the god of records. Built in Cairo, fluent in
-                Arabic and English.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-10 flex-1 text-[13px]">
-              {[
-                { h: "Product", links: [
-                  { l: "Features", href: "#product" },
-                  { l: "Pricing", href: "#pricing" },
-                  { l: "Shopify integration", href: "#product" },
-                  { l: "The story", href: "#story" },
-                ] },
-                { h: "Company", links: [
-                  { l: "About", href: "#story" },
-                  { l: "Team", href: "#team" },
-                  { l: "Careers", href: "mailto:hello@thoth.app?subject=Careers" },
-                  { l: "Contact", href: "mailto:hello@thoth.app" },
-                ] },
-                { h: "Resources", links: [
-                  { l: "FAQ", href: "#faq" },
-                  { l: "Custom builds", href: "mailto:hello@thoth.app?subject=Custom%20build" },
-                  { l: "Help center", href: "mailto:hello@thoth.app?subject=Help" },
-                ] },
-                { h: "Legal", links: [
-                  { l: "Privacy", href: "mailto:hello@thoth.app?subject=Privacy" },
-                  { l: "Terms", href: "mailto:hello@thoth.app?subject=Terms" },
-                  { l: "Security", href: "#faq" },
-                ] },
-              ].map((col) => (
-                <div key={col.h}>
-                  <p className="text-[var(--moon)] font-medium mb-3.5">{col.h}</p>
-                  <ul className="space-y-2.5">
-                    {col.links.map(({ l, href }) => (
-                      <li key={l}>
-                        <a href={href} className="text-[var(--moon-dim)] hover:text-[var(--moon)] transition-colors">{l}</a>
+          <div className="mt-14 grid md:grid-cols-3 gap-5 items-start">
+            {PLANS.map((pl, i) => (
+              <Reveal key={pl.name} delay={i * 0.1}>
+                <motion.div
+                  whileHover={{ y: -8 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className={"relative rounded-[28px] p-7 border " + (pl.pop ? "bg-[var(--ink)] text-[var(--cream)] border-transparent shadow-[0_24px_60px_-24px_rgba(45,49,57,0.6)]" : "bg-[var(--paper)] border-[var(--ink)]/8")}
+                >
+                  {pl.pop && (
+                    <span className="absolute -top-3 left-7 rounded-full bg-[var(--teal)] text-white text-[14px] font-bold px-3 py-1 flex items-center gap-1">
+                      <Star size={12} /> Most loved
+                    </span>
+                  )}
+                  <h3 className="text-[28px]" style={display}>{pl.name}</h3>
+                  <div className="mt-3 flex items-baseline gap-1.5">
+                    <span className="text-[44px] leading-none" style={display}>{pl.price}</span>
+                    <span className={"text-[16px] font-semibold " + (pl.pop ? "text-[var(--cream)]/60" : "text-[var(--ink-soft)]")}>{pl.unit}</span>
+                  </div>
+                  <ul className="mt-6 space-y-2.5">
+                    {pl.feats.map((f) => (
+                      <li key={f} className="flex items-center gap-2.5 text-[18px] font-semibold">
+                        <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: pl.tint }}><Check size={12} className="text-white" /></span>
+                        {f}
                       </li>
                     ))}
                   </ul>
+                  <button onClick={goAuth} className={"mt-7 w-full rounded-full py-3 text-[18px] font-bold transition-colors " + (pl.pop ? "bg-[var(--teal)] text-white hover:bg-[var(--teal-deep)]" : "bg-[var(--ink)] text-[var(--cream)] hover:bg-[var(--teal)]")}>
+                    {pl.cta}
+                  </button>
+                </motion.div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ─────────────────────────────────────────── */}
+      <section className="pb-28">
+        <div className="max-w-[1100px] mx-auto px-5">
+          <Reveal>
+            <div className="relative overflow-hidden rounded-[40px] px-8 py-20 text-center" style={{ background: "linear-gradient(135deg,var(--teal) 0%,var(--purple) 100%)" }}>
+              <motion.div
+                className="absolute inset-0 opacity-30"
+                style={{ backgroundImage: "radial-gradient(circle at 20% 30%, white 1px, transparent 1px)", backgroundSize: "26px 26px" }}
+                animate={{ backgroundPosition: ["0px 0px", "26px 26px"] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              />
+              <div className="relative">
+                <h2 className="text-[clamp(2.4rem,5.5vw,4.2rem)] leading-[0.98] text-[var(--cream)]" style={display}>
+                  Your business, finally<br />in one joyful place.
+                </h2>
+                <div className="mt-8 flex justify-center">
+                  <Magnetic onClick={goAuth} className="bg-[var(--cream)] text-[var(--ink)] text-[21px]">
+                    Start free today <ArrowRight size={19} className="transition-transform group-hover:translate-x-1" />
+                  </Magnetic>
                 </div>
-              ))}
+              </div>
             </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────── */}
+      <footer className="border-t border-[var(--ink)]/8 py-10">
+        <div className="max-w-[1200px] mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Ibis size={22} />
+            <span className="text-[20px] tracking-[0.14em]" style={display}>THOTH</span>
           </div>
-          <div className="mt-12 pt-6 border-t border-[var(--line)] flex flex-wrap items-center justify-between gap-3 text-[12px] text-[var(--moon-dim)]">
-            <p>© 2026 THOTH · Cairo, Egypt</p>
-            <p dir="rtl" lang="ar">تحوت — نظام تشغيل الأعمال</p>
-          </div>
+          <p className="text-[16px] font-semibold text-[var(--ink-soft)]">© 2026 THOTH · Cairo, Egypt · The god of records would approve.</p>
         </div>
       </footer>
     </div>
