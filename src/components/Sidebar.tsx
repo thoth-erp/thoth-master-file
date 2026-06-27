@@ -292,7 +292,7 @@ function SidebarContent({
   }
 
   return (
-    <div className="flex flex-col h-full bg-sidebar relative">
+    <div className="flex flex-col h-full thoth-glass relative">
 
       {/* Logo row */}
       <div className="h-[56px] flex items-center px-4 shrink-0 overflow-hidden">

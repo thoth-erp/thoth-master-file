@@ -80,14 +80,14 @@
   --elevate-1: rgba(0,0,0, .025);
   --elevate-2: rgba(0,0,0, .06);
 
-  /* Cream #FAF6EE — warm paper canvas */
-  --background: 37 50% 96%;
+  /* Soft near-white canvas — calmer than warm cream, less glare */
+  --background: 40 24% 97%;
 
-  /* Ink #2D3139 — graphite, not pure black */
-  --foreground: 216 8% 20%;
+  /* Softer graphite — eases the harsh ink-on-cream contrast */
+  --foreground: 220 10% 28%;
 
-  /* Border #DAD6CE — barely-there, sage-tinted */
-  --border: 37 13% 86%;
+  /* Barely-there border, slightly softer */
+  --border: 38 12% 88%;
 
   /* Card surface — lifts slightly off background */
   --card: 37 30% 95%;
@@ -136,13 +136,15 @@
   --chart-4: 200 30% 58%;
   --chart-5: 268 20% 60%;
 
-  /* DM Sans for body, Playfair Display for headings */
-  --app-font-sans: 'DM Sans', system-ui, sans-serif;
-  --app-font-serif: 'Playfair Display', Georgia, serif;
-  --app-font-mono: 'Menlo', monospace;
+  /* Apple-like system stack — SF Pro on macOS — for eye-comfortable, calm UI.
+     Headings use the same family (just heavier) instead of a high-contrast
+     display serif, so text stops "fighting" at interface sizes. */
+  --app-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'DM Sans', system-ui, sans-serif;
+  --app-font-serif: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+  --app-font-mono: 'SF Mono', 'Menlo', ui-monospace, monospace;
 
-  /* 12px base radius — soft and architectural */
-  --radius: 0.75rem;
+  /* Softer, rounder radius for the liquid-glass feel */
+  --radius: 0.875rem;
 
   /* Elegant warm shadows — barely there, deeply refined */
   --shadow-2xs: 0 1px 2px 0 hsl(220 12% 18% / 0.04);
@@ -257,15 +259,17 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-weight: 300;
-    letter-spacing: -0.01em;
+    font-weight: 400;
+    letter-spacing: -0.011em;
     font-feature-settings: "kern" 1, "liga" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   h1, h2, h3 {
     font-family: var(--app-font-serif);
-    font-weight: 500;
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    letter-spacing: -0.022em;
   }
 
   h4, h5, h6 {
@@ -299,6 +303,15 @@
 
 /* ─── THOTH SURFACE UTILITIES ───────────────────────────── */
 @layer utilities {
+
+  /* Liquid-glass surface — frosted translucency for chrome (sidebar, headers,
+     toolbars, popovers). Apple-like depth without heavy contrast. */
+  .thoth-glass {
+    background-color: hsl(var(--background) / 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-color: hsl(var(--border) / 0.6);
+  }
 
   /* Quiet card with elegant shadow — use instead of bare bg-card */
   .thoth-card {

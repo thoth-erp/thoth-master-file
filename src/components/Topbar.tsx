@@ -106,7 +106,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const userInitials = userName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <header className="h-[56px] shrink-0 flex items-center px-4 gap-3 bg-background border-b border-border/50">
+    <header className="h-[56px] shrink-0 flex items-center px-4 gap-3 thoth-glass border-b sticky top-0 z-30">
 
       {/* ── Left: Hamburger + breadcrumb ── */}
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
