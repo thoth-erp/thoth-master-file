@@ -6,12 +6,10 @@ export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
 
   const cycle = () => {
-    if (theme === "light") setTheme("dark");
-    else if (theme === "dark") setTheme("system");
-    else setTheme("light");
+    setTheme(theme === "dark" ? "light" : "dark");
   };
 
-  const icon = theme === "dark" ? "moon" : theme === "light" ? "sun" : "system";
+  const icon = theme === "dark" ? "moon" : "sun";
 
   return (
     <button
