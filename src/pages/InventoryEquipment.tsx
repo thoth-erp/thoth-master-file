@@ -80,14 +80,16 @@ interface AssetMeta {
 
 function getMeta(r: Resource): AssetMeta {
   const m = (r.metadata ?? {}) as Record<string, unknown>;
+  // Fall back to the demo seed's field names (value/status/assignedToEn/…) so
+  // existing sample assets show real numbers, not blanks.
   return {
-    asset_tag: m.asset_tag as string, serial_no: m.serial_no as string,
-    assigned_to: m.assigned_to as string, assigned_dept: m.assigned_dept as string,
-    location: m.location as string, purchase_date: m.purchase_date as string,
-    purchase_cost: m.purchase_cost as number, useful_life_years: m.useful_life_years as number,
+    asset_tag: (m.asset_tag ?? m.sku) as string, serial_no: m.serial_no as string,
+    assigned_to: (m.assigned_to ?? m.assignedToEn) as string, assigned_dept: m.assigned_dept as string,
+    location: (m.location ?? m.locationEn) as string, purchase_date: (m.purchase_date ?? m.purchaseDateEn) as string,
+    purchase_cost: (m.purchase_cost ?? m.value) as number, useful_life_years: m.useful_life_years as number,
     salvage_value: m.salvage_value as number, condition: m.condition as string,
-    warranty_expiry: m.warranty_expiry as string, asset_status: m.asset_status as string,
-    supplier: m.supplier as string, notes: m.notes as string,
+    warranty_expiry: m.warranty_expiry as string, asset_status: (m.asset_status ?? m.status) as string,
+    supplier: m.supplier as string, notes: (m.notes ?? m.descEn) as string,
   };
 }
 
@@ -96,8 +98,9 @@ function depreciation(m: AssetMeta): { book: number; annual: number; agePct: num
   const cost = m.purchase_cost || 0;
   const salvage = m.salvage_value || 0;
   const life = m.useful_life_years || 5;
-  if (!cost || !m.purchase_date) return { book: cost, annual: 0, agePct: 0, depreciated: 0 };
-  const ageYears = Math.max(0, (Date.now() - new Date(m.purchase_date).getTime()) / (365.25 * 24 * 3600 * 1000));
+  const purchaseMs = m.purchase_date ? new Date(m.purchase_date).getTime() : NaN;
+  if (!cost || isNaN(purchaseMs)) return { book: cost, annual: 0, agePct: 0, depreciated: 0 };
+  const ageYears = Math.max(0, (Date.now() - purchaseMs) / (365.25 * 24 * 3600 * 1000));
   const annual = (cost - salvage) / life;
   const depreciated = Math.min(annual * ageYears, cost - salvage);
   return { book: Math.max(cost - depreciated, salvage), annual, agePct: Math.min(ageYears / life, 1), depreciated };
