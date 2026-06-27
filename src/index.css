@@ -89,10 +89,10 @@
   /* Barely-there border, slightly softer */
   --border: 38 12% 88%;
 
-  /* Card surface — lifts slightly off background */
-  --card: 37 30% 95%;
-  --card-foreground: 216 8% 20%;
-  --card-border: 37 13% 89%;
+  /* Card surface — near-white so it gently lifts off the soft canvas */
+  --card: 40 40% 99%;
+  --card-foreground: 220 10% 28%;
+  --card-border: 38 14% 91%;
 
   /* Sage-tinted sidebar */
   --sidebar: 120 11% 93%;
@@ -104,9 +104,9 @@
   --sidebar-accent-foreground: 216 8% 20%;
   --sidebar-ring: 268 26% 55%;
 
-  --popover: 37 50% 96%;
-  --popover-foreground: 216 8% 20%;
-  --popover-border: 37 13% 86%;
+  --popover: 40 40% 99%;
+  --popover-foreground: 220 10% 28%;
+  --popover-border: 38 14% 90%;
 
   /* Lilac #8C6FAE — the accent, muted, architectural */
   --primary: 268 26% 55%;
