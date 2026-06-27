@@ -51,6 +51,7 @@ import {
 import { useLanguage } from "../context/LanguageContext";
 import { useOnboarding } from "../context/OnboardingContext";
 import { useAuth } from "../context/AuthContext";
+import { isDemoMode } from "../lib/supabase";
 import { useState, useEffect } from "react";
 import { getRecentPages, getRouteLabel, trackPageVisit } from "./Breadcrumbs";
 
@@ -117,18 +118,34 @@ const CORE_NAV = [
   { id: "mobile-apps",   icon: Smartphone,      labelEn: "Mobile Apps",  labelAr: "تطبيقات محمولة",  path: "/mobile-apps" },
 ] as const;
 
-// Map nav item IDs to module keys from onboarding
-// Items not in this map are always visible (core items like customers, products, orders)
+// Map nav item IDs to the module keys chosen at onboarding.
+// Items NOT in this map are always visible (foundational: today, activity,
+// customers, contacts, branches, team, users). Everything mapped here only
+// shows when its module was selected — so the sidebar reflects the user's setup.
 const NAV_MODULE_MAP: Record<string, string> = {
-  hr: "hr",
-  purchasing: "purchasing",
-  quality: "production",
-  delivery: "delivery",
-  analytics: "analytics",
-  finance: "finance",
-  reports: "analytics",
-  operations: "production",
-  work: "production",
+  // Sell
+  sales: "sales", quotations: "sales", orders: "sales", crm: "sales",
+  "crm-customers": "sales", "crm-pipeline": "sales", pos: "pos",
+  // Make
+  production: "production", "prod-exec": "production", work: "production",
+  operations: "production", quality: "quality",
+  // Design
+  designs: "design", studio: "design",
+  // Stock
+  products: "inventory", inventory: "inventory", purchasing: "purchasing",
+  // Deliver
+  delivery: "delivery", "site-visits": "delivery",
+  // Money
+  finance: "finance", "fin-dashboard": "finance", "fin-invoices": "finance",
+  "fin-expenses": "finance", "fin-reports": "finance", "fin-bank": "finance",
+  "fin-arap": "finance",
+  // People
+  hr: "hr", "hr-dashboard": "hr", "hr-employees": "hr", "hr-recruitment": "hr",
+  "hr-compensation": "hr", "hr-training": "hr", "hr-performance": "hr",
+  "hr-relations": "hr", "hr-compliance": "hr", "hr-analytics": "hr",
+  "hr-payroll": "hr", "hr-org": "hr",
+  // Grow
+  analytics: "analytics", reports: "analytics",
 };
 
 const LOYALTY_NAV = [
@@ -247,6 +264,13 @@ function SidebarContent({
   const [location] = useLocation();
 
   const wsSettings = workspace?.settings as Record<string, unknown> | undefined;
+  // Modules the user enabled at onboarding. In demo mode the workspace is a
+  // synthetic default (all modules on), so the user's onboarding choice wins;
+  // in live mode the workspace settings are authoritative.
+  const wsModules = wsSettings?.enabled_modules as string[] | undefined;
+  const enabledModules = isDemoMode
+    ? (onboardingData?.enabled_modules ?? wsModules)
+    : (wsModules ?? onboardingData?.enabled_modules);
   const companyName = (wsSettings?.company_name as string) || onboardingData?.companyName || workspace?.name || "THOTH";
   const industry = (wsSettings?.industry as string) || onboardingData?.industry || "";
   const country = (wsSettings?.country as string) || "";
@@ -316,8 +340,7 @@ function SidebarContent({
         <SectionLabel label={lang === "ar" ? "الأساسي" : "Core"} collapsed={collapsed} />
         {CORE_NAV.filter((item) => {
           const moduleKey = NAV_MODULE_MAP[item.id];
-          if (!moduleKey) return true; // always visible
-          const enabledModules = (wsSettings?.enabled_modules as string[] | undefined);
+          if (!moduleKey) return true; // always visible (foundational)
           if (!enabledModules) return true; // no filtering if not configured
           return enabledModules.includes(moduleKey);
         }).map((item) => (
@@ -333,20 +356,24 @@ function SidebarContent({
           />
         ))}
 
-        {/* Loyalty */}
-        <SectionLabel label={lang === "ar" ? "الولاء" : "Loyalty"} collapsed={collapsed} />
-        {LOYALTY_NAV.map((item) => (
-          <NavItem
-            key={item.id}
-            id={item.id}
-            icon={item.icon}
-            label={lang === "ar" ? item.labelAr : item.labelEn}
-            path={item.path}
-            isActive={isActive(item.path)}
-            collapsed={collapsed}
-            onClick={onNavClick}
-          />
-        ))}
+        {/* Loyalty — only when the module is enabled */}
+        {(!enabledModules || enabledModules.includes("loyalty")) && (
+          <>
+            <SectionLabel label={lang === "ar" ? "الولاء" : "Loyalty"} collapsed={collapsed} />
+            {LOYALTY_NAV.map((item) => (
+              <NavItem
+                key={item.id}
+                id={item.id}
+                icon={item.icon}
+                label={lang === "ar" ? item.labelAr : item.labelEn}
+                path={item.path}
+                isActive={isActive(item.path)}
+                collapsed={collapsed}
+                onClick={onNavClick}
+              />
+            ))}
+          </>
+        )}
 
         {/* Intelligence */}
         <SectionLabel label={lang === "ar" ? "الذكاء" : "Intelligence"} collapsed={collapsed} />

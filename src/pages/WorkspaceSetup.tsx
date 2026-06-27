@@ -78,6 +78,27 @@ const GOALS = [
 const CORE_MODULES = ["sales", "inventory", "finance", "analytics"];
 const CURRENCIES = ["EGP", "USD", "EUR", "SAR", "AED", "GBP"];
 
+// Clean categories for the module step (clear filters, not one flat grid)
+const GOAL_GROUPS: { id: string; en: string; ar: string; goals: string[] }[] = [
+  { id: "sell",    en: "Sell",    ar: "البيع",     goals: ["sales", "pos", "loyalty"] },
+  { id: "make",    en: "Make",    ar: "التصنيع",   goals: ["production", "quality", "design"] },
+  { id: "stock",   en: "Stock",   ar: "المخزون",   goals: ["inventory", "purchasing"] },
+  { id: "deliver", en: "Deliver", ar: "التسليم",   goals: ["delivery"] },
+  { id: "manage",  en: "Manage",  ar: "الإدارة",   goals: ["finance", "hr", "analytics"] },
+];
+
+// Smart per-industry recommended module sets (pre-selected on industry pick)
+const RECOMMENDED: Record<string, string[]> = {
+  fashion:       ["sales", "production", "inventory", "design", "quality", "finance", "analytics"],
+  furniture:     ["sales", "production", "inventory", "delivery", "finance", "analytics"],
+  manufacturing: ["production", "inventory", "purchasing", "quality", "finance", "analytics"],
+  retail:        ["sales", "pos", "inventory", "loyalty", "finance", "analytics"],
+  services:      ["sales", "delivery", "finance", "hr", "analytics"],
+  food:          ["sales", "pos", "inventory", "purchasing", "finance", "analytics"],
+  trading:       ["sales", "inventory", "purchasing", "delivery", "finance", "analytics"],
+  other:         ["sales", "inventory", "finance", "analytics"],
+};
+
 const TOTAL = 6;
 
 // ─── State ───────────────────────────────────────────────
@@ -151,6 +172,12 @@ export default function WorkspaceSetup() {
   const set = (patch: Partial<State>) => setState((p) => ({ ...p, ...patch }));
   const toggleGoal = (id: string) =>
     setState((p) => ({ ...p, goals: p.goals.includes(id) ? p.goals.filter((g) => g !== id) : [...p.goals, id] }));
+
+  // Picking an industry pre-selects its smart recommended modules (user can edit)
+  const selectIndustry = (id: string) =>
+    setState((p) => ({ ...p, industry: id, goals: RECOMMENDED[id] ?? CORE_MODULES }));
+  const resetRecommended = () =>
+    setState((p) => ({ ...p, goals: RECOMMENDED[p.industry] ?? CORE_MODULES }));
 
   function go(d: number) { setDir(d); setStep((s) => Math.min(Math.max(s + d, 0), TOTAL - 1)); }
 
@@ -264,9 +291,12 @@ export default function WorkspaceSetup() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
                     {INDUSTRIES.map((i) => (
                       <SelectCard key={i.id} compact active={state.industry === i.id} tint={i.tint} icon={i.icon}
-                        title={ar ? i.ar : i.en} onClick={() => set({ industry: i.id })} />
+                        title={ar ? i.ar : i.en} onClick={() => selectIndustry(i.id)} />
                     ))}
                   </div>
+                  <p className="mt-5 text-[16px] font-medium text-[var(--ink-soft)]">
+                    {ar ? "هنرشّحلك الوحدات المناسبة تلقائيًا — وتقدر تعدّلها بعدين." : "We'll pre-pick the right modules for you — tweak them next."}
+                  </p>
                 </div>
               )}
 
@@ -283,16 +313,45 @@ export default function WorkspaceSetup() {
                 </div>
               )}
 
-              {/* 3 — Goals / modules */}
+              {/* 3 — Goals / modules (grouped + smart-recommended) */}
               {step === 3 && (
                 <div>
-                  <StepHead eyebrow="YOUR FOCUS" title="What should THOTH handle for you?" />
-                  <p className="-mt-5 mb-6 text-[18px] font-medium text-[var(--ink-soft)]">Pick all that apply — you can change these any time.</p>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5">
-                    {GOALS.map((g) => (
-                      <SelectCard key={g.id} compact active={state.goals.includes(g.id)} tint={g.tint} icon={g.icon}
-                        title={ar ? g.ar : g.en} onClick={() => toggleGoal(g.id)} />
-                    ))}
+                  <StepHead eyebrow="YOUR FOCUS" title="What should THOTH handle?" />
+                  <div className="-mt-5 mb-6 flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--mint)] text-[var(--teal-deep)] px-3.5 py-1.5 text-[15px] font-bold">
+                      <Check size={13} /> {state.goals.length} {ar ? "وحدة مختارة" : "selected"}
+                    </span>
+                    {industry && (
+                      <button onClick={resetRecommended} className="text-[15px] font-bold text-[var(--teal)] hover:underline underline-offset-2">
+                        {ar ? "↺ ارجع للمقترح" : "↺ Reset to recommended"}
+                      </button>
+                    )}
+                    <span className="text-[15px] font-medium text-[var(--ink-soft)]">{ar ? "بس اللي تختاره هيظهر في القائمة." : "Only what you pick shows in the sidebar."}</span>
+                  </div>
+                  <div className="space-y-6">
+                    {GOAL_GROUPS.map((grp) => {
+                      const items = grp.goals.map((gid) => GOALS.find((g) => g.id === gid)!).filter(Boolean);
+                      const allOn = items.every((g) => state.goals.includes(g.id));
+                      return (
+                        <div key={grp.id}>
+                          <div className="flex items-center justify-between mb-2.5">
+                            <p className="text-[16px] font-bold text-[var(--ink-soft)] uppercase tracking-wide">{ar ? grp.ar : grp.en}</p>
+                            <button onClick={() => setState((p) => ({
+                              ...p,
+                              goals: allOn ? p.goals.filter((g) => !grp.goals.includes(g)) : Array.from(new Set([...p.goals, ...grp.goals])),
+                            }))} className="text-[14px] font-bold text-[var(--teal)] hover:underline underline-offset-2">
+                              {allOn ? (ar ? "إلغاء الكل" : "Clear all") : (ar ? "اختر الكل" : "Select all")}
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {items.map((g) => (
+                              <SelectCard key={g.id} compact active={state.goals.includes(g.id)} tint={g.tint} icon={g.icon}
+                                title={ar ? g.ar : g.en} onClick={() => toggleGoal(g.id)} />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

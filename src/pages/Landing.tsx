@@ -271,6 +271,185 @@ const PLANS = [
   { name: "Temple", price: "4,999", unit: "EGP / mo", tint: "var(--purple)", feats: ["Everything in Scribe", "Priority support", "1-day custom builds"], cta: "Choose Temple" },
 ];
 
+// ─── Capability mini-mockups (playful product "snapshots") ──
+
+/** Animated bar chart that grows when scrolled into view. */
+function MiniChart() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-10%" });
+  const bars = [42, 68, 55, 88, 73, 96];
+  return (
+    <div ref={ref}>
+      <div className="flex items-end justify-between gap-1.5 h-[78px]">
+        {bars.map((h, i) => (
+          <motion.div key={i} className="flex-1 rounded-t-md"
+            style={{ background: i === 3 ? "var(--teal)" : "var(--mint)" }}
+            initial={{ height: 0 }} animate={inView ? { height: `${h}%` } : {}}
+            transition={{ duration: 0.7, ease: EASE, delay: 0.1 + i * 0.08 }} />
+        ))}
+      </div>
+      <div className="mt-2.5 flex items-baseline gap-1.5">
+        <span className="text-[26px] leading-none text-[var(--teal-deep)]" style={display}>
+          {inView && <Counter to={284} duration={1.4} />}<span className="text-[16px]">K</span>
+        </span>
+        <span className="text-[14px] font-bold text-emerald-600">▲ 18%</span>
+      </div>
+    </div>
+  );
+}
+
+/** Quotation card with line items + a discount badge. */
+function MiniQuote() {
+  return (
+    <div className="text-[14px]">
+      <div className="flex items-center justify-between mb-2.5">
+        <span className="font-mono text-[13px] px-2 py-0.5 rounded-md bg-[var(--mint)] text-[var(--teal-deep)]">QT-00042</span>
+        <motion.span
+          initial={{ scale: 0, rotate: -12 }} whileInView={{ scale: 1, rotate: -8 }} viewport={{ once: true }}
+          transition={{ type: "spring", stiffness: 300, delay: 0.3 }}
+          className="text-[13px] font-bold px-2 py-0.5 rounded-md bg-[var(--purple)] text-white">−15% off</motion.span>
+      </div>
+      {[["3× Oak chair", "1,200"], ["1× Walnut table", "4,800"]].map(([a, b]) => (
+        <div key={a} className="flex items-center justify-between py-1.5 border-b border-[var(--ink)]/6">
+          <span className="font-semibold text-[var(--ink-soft)]">{a}</span>
+          <span className="font-bold">{b}</span>
+        </div>
+      ))}
+      <div className="flex items-center justify-between pt-2.5">
+        <span className="font-bold">Total</span>
+        <span className="text-[19px] font-bold text-[var(--teal-deep)]">EGP 5,100</span>
+      </div>
+    </div>
+  );
+}
+
+/** Production kanban with chips that wobble. */
+function MiniKanban() {
+  const cols = [
+    { t: "Cutting", c: ["#A", "#B"], tint: "var(--teal)" },
+    { t: "Sewing", c: ["#C"], tint: "var(--purple)" },
+    { t: "Done", c: ["#D", "#E"], tint: "var(--ink)" },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {cols.map((col, ci) => (
+        <div key={col.t}>
+          <p className="text-[12px] font-bold text-[var(--ink-soft)] mb-1.5">{col.t}</p>
+          <div className="space-y-1.5">
+            {col.c.map((chip, i) => (
+              <motion.div key={chip}
+                animate={{ y: [0, -3, 0] }} transition={{ duration: 2.5, repeat: Infinity, delay: ci * 0.3 + i * 0.4, ease: "easeInOut" }}
+                className="h-7 rounded-lg flex items-center px-2 text-[12px] font-bold text-white" style={{ background: col.tint }}>
+                {chip}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Inventory stock bars. */
+function MiniStock() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true });
+  const items = [["Cotton", 82, "var(--teal)"], ["Denim", 34, "var(--purple)"], ["Linen", 61, "var(--teal-deep)"]] as const;
+  return (
+    <div className="space-y-3" ref={ref}>
+      {items.map(([name, pct, tint], i) => (
+        <div key={name}>
+          <div className="flex items-center justify-between text-[13px] font-bold mb-1">
+            <span>{name}</span><span className="text-[var(--ink-soft)]">{pct}%</span>
+          </div>
+          <div className="h-2.5 rounded-full bg-[var(--ink)]/8 overflow-hidden">
+            <motion.div className="h-full rounded-full" style={{ background: tint as string }}
+              initial={{ width: 0 }} animate={inView ? { width: `${pct}%` } : {}}
+              transition={{ duration: 0.8, ease: EASE, delay: 0.1 + i * 0.12 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const CAPS: { label: string; icon: React.ElementType; tint: string; copy: string; mock: React.ReactNode; span?: string }[] = [
+  { label: "Sales that sing", icon: ShoppingBag, tint: "var(--teal)", copy: "Watch revenue climb in real time — quotes, orders and POS, all feeding one live picture.", mock: <MiniChart />, span: "md:col-span-2" },
+  { label: "Quotes with flair", icon: Wallet, tint: "var(--purple)", copy: "Build branded quotes, drop a discount, send a PDF — convert to an order in one tap.", mock: <MiniQuote /> },
+  { label: "Production, visible", icon: Boxes, tint: "var(--ink)", copy: "Every job on a board you can read at a glance. Drag it from cutting to done.", mock: <MiniKanban /> },
+  { label: "Stock you can trust", icon: Truck, tint: "var(--teal-deep)", copy: "Live levels, reorder alerts, fabrics & assets — never run out, never over-buy.", mock: <MiniStock />, span: "md:col-span-2" },
+];
+
+function Capabilities() {
+  return (
+    <section id="capabilities" className="py-24 sm:py-32 bg-[var(--cream)]">
+      <div className="max-w-[1200px] mx-auto px-5">
+        <Reveal>
+          <p className="text-[19px] font-bold text-[var(--purple)] mb-3">A PEEK INSIDE</p>
+          <h2 className="text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.02] max-w-[20ch]" style={display}>
+            Real tools, doing real work — and looking good doing it.
+          </h2>
+        </Reveal>
+        <div className="mt-14 grid md:grid-cols-3 gap-5">
+          {CAPS.map((c, i) => (
+            <Reveal key={c.label} delay={i * 0.1} className={c.span ?? ""}>
+              <motion.div
+                whileHover={{ y: -8, rotate: -0.5 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="h-full rounded-[28px] bg-[var(--paper)] p-6 border border-[var(--ink)]/6 shadow-[0_14px_40px_-22px_rgba(45,49,57,0.3)]"
+              >
+                <div className="flex items-center gap-2.5 mb-4">
+                  <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: c.tint }}>
+                    <c.icon size={19} className="text-white" />
+                  </span>
+                  <h3 className="text-[26px] leading-none" style={display}>{c.label}</h3>
+                </div>
+                <div className="rounded-2xl bg-[var(--cream)] border border-[var(--ink)]/6 p-4 mb-4">{c.mock}</div>
+                <p className="text-[18px] leading-[1.25] text-[var(--ink-soft)] font-medium">{c.copy}</p>
+              </motion.div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const STEPS = [
+  { n: "1", icon: Sparkles, tint: "var(--teal)", t: "Answer 6 questions", c: "Tell THOTH your trade and team. It pre-picks the right modules and names them your way." },
+  { n: "2", icon: Boxes, tint: "var(--purple)", t: "Pour in your data", c: "Import from a spreadsheet or start from sample data. Your codes, your formats — instantly." },
+  { n: "3", icon: Gauge, tint: "var(--ink)", t: "Run the whole show", c: "Sell, make, stock, pay, analyse — every corner of the business in one joyful place." },
+];
+
+function HowItWorks() {
+  return (
+    <section className="py-24 sm:py-32">
+      <div className="max-w-[1100px] mx-auto px-5">
+        <Reveal className="text-center mb-14">
+          <p className="text-[19px] font-bold text-[var(--teal)] mb-3">LIVE IN MINUTES</p>
+          <h2 className="text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.02]" style={display}>Three steps. No IT degree.</h2>
+        </Reveal>
+        <div className="grid md:grid-cols-3 gap-5 relative">
+          {STEPS.map((s, i) => (
+            <Reveal key={s.n} delay={i * 0.12}>
+              <motion.div whileHover={{ y: -6 }} className="h-full rounded-[28px] bg-[var(--paper)] border border-[var(--ink)]/6 p-7 text-center shadow-[0_14px_40px_-24px_rgba(45,49,57,0.3)]">
+                <motion.div
+                  animate={{ rotate: [0, 6, -6, 0] }} transition={{ duration: 4, repeat: Infinity, delay: i * 0.5, ease: "easeInOut" }}
+                  className="w-16 h-16 rounded-3xl mx-auto mb-5 flex items-center justify-center relative" style={{ background: s.tint }}>
+                  <s.icon size={26} className="text-white" />
+                  <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-[var(--cream)] border-2 border-[var(--ink)]/10 flex items-center justify-center text-[15px] font-bold" style={display}>{s.n}</span>
+                </motion.div>
+                <h3 className="text-[26px] leading-tight mb-2" style={display}>{s.t}</h3>
+                <p className="text-[18px] leading-[1.25] text-[var(--ink-soft)] font-medium">{s.c}</p>
+              </motion.div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
 // Page
 // ═══════════════════════════════════════════════════════════
@@ -309,8 +488,8 @@ export default function Landing() {
               <span className="text-[22px] tracking-[0.14em] leading-none" style={display}>THOTH</span>
             </a>
             <div className="hidden md:flex items-center gap-7 text-[18px] font-semibold text-[var(--ink-soft)]">
-              {["Powers", "Product", "Pricing"].map((l) => (
-                <a key={l} href={`#${l.toLowerCase()}`} className="hover:text-[var(--ink)] transition-colors">{l}</a>
+              {[["Powers", "powers"], ["Inside", "capabilities"], ["Product", "product"], ["Pricing", "pricing"]].map(([l, id]) => (
+                <a key={id} href={`#${id}`} className="hover:text-[var(--ink)] transition-colors">{l}</a>
               ))}
             </div>
             <button onClick={goAuth} className="rounded-full bg-[var(--ink)] text-[var(--cream)] text-[17px] font-bold px-5 py-2.5 hover:bg-[var(--teal)] transition-colors">
@@ -400,6 +579,8 @@ export default function Landing() {
         </div>
       </section>
 
+      <Capabilities />
+
       {/* ── Make it yours (genericization story) ─────────── */}
       <section id="product" className="py-24 sm:py-28 bg-[var(--ink)] text-[var(--cream)] relative overflow-hidden">
         <div className="max-w-[1200px] mx-auto px-5 grid lg:grid-cols-2 gap-14 items-center relative">
@@ -454,6 +635,8 @@ export default function Landing() {
           </Reveal>
         </div>
       </section>
+
+      <HowItWorks />
 
       {/* ── Stats band ──────────────────────────────────── */}
       <section className="py-20 bg-[var(--mint)]">
