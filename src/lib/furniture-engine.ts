@@ -190,6 +190,10 @@ export interface SOPayment {
 
 export interface SOMeta {
   so_number?: string;
+  subtotal?: number;
+  order_discount?: number;
+  order_discount_type?: "pct" | "fixed";
+  tax_rate?: number;
   customer_type?: string;
   customer_id?: string;
   customer_name?: string;

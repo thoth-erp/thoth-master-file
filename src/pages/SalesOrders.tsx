@@ -113,6 +113,11 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
   // Step 3: Manufacturing route
   const [mfgRoute, setMfgRoute] = useState("standard");
 
+  // Discount & tax
+  const [orderDiscount, setOrderDiscount] = useState(0);
+  const [orderDiscountType, setOrderDiscountType] = useState<"pct" | "fixed">("pct");
+  const [taxRate, setTaxRate] = useState(0);
+
   // Step 4: Payments
   const [payments, setPayments] = useState<SOPayment[]>([]);
 
@@ -123,7 +128,13 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
   const [materialsAvailable, setMaterialsAvailable] = useState(false);
   const [depositReceived, setDepositReceived] = useState(false);
 
-  const totalAmount = useMemo(() => calcTotal(items), [items]);
+  const subtotal = useMemo(() => calcTotal(items), [items]);
+  const orderDiscAmt = useMemo(() => {
+    if (orderDiscount <= 0) return 0;
+    return orderDiscountType === "fixed" ? Math.min(orderDiscount, subtotal) : subtotal * (Math.min(orderDiscount, 100) / 100);
+  }, [orderDiscount, orderDiscountType, subtotal]);
+  const taxAmt = useMemo(() => (subtotal - orderDiscAmt) * ((taxRate || 0) / 100), [subtotal, orderDiscAmt, taxRate]);
+  const totalAmount = useMemo(() => subtotal - orderDiscAmt + taxAmt, [subtotal, orderDiscAmt, taxAmt]);
   const totalPaid = useMemo(() => calcPaid(payments), [payments]);
 
   // Estimate time from product stages
@@ -216,6 +227,7 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
         customer_confirmed: customerConfirmed, measurements_done: measurementsDone,
         design_approved: designApproved, materials_available: materialsAvailable,
         deposit_received: depositReceived,
+        subtotal, order_discount: orderDiscount, order_discount_type: orderDiscountType, tax_rate: taxRate,
         total_amount: totalAmount, total_paid: totalPaid,
         estimated_days: estimatedDays, estimated_cost: estimatedCost,
         manufacturing_route: mfgRoute,
@@ -494,10 +506,44 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <p className="text-[13px] font-medium">{ar ? "ملخص التكلفة" : "Cost Summary"}</p>
+                  {/* Discount & tax controls */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">{ar ? "خصم" : "Discount"}</label>
+                      <div className="flex gap-1">
+                        <input type="number" min={0} value={orderDiscount || ""} onChange={e => setOrderDiscount(parseFloat(e.target.value) || 0)} className={smallInput} placeholder="0" />
+                        <div className="flex rounded-lg border border-border/60 overflow-hidden shrink-0">
+                          {(["pct", "fixed"] as const).map(t => (
+                            <button key={t} type="button" onClick={() => setOrderDiscountType(t)} className={`px-2 text-[11px] font-medium ${orderDiscountType === t ? "bg-foreground text-background" : "text-muted-foreground"}`}>{t === "pct" ? "%" : currency}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-muted-foreground">{ar ? "ضريبة %" : "Tax %"}</label>
+                      <input type="number" min={0} value={taxRate || ""} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} className={smallInput} placeholder="0" />
+                    </div>
+                  </div>
                   <div className="bg-muted/20 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between text-[12px]">
-                      <span className="text-muted-foreground">{ar ? "قيمة الطلب" : "Order Value"}</span>
-                      <span className="font-medium tabular-nums">{fmt(totalAmount)} {currency}</span>
+                      <span className="text-muted-foreground">{ar ? "الإجمالي الفرعي" : "Subtotal"}</span>
+                      <span className="font-medium tabular-nums">{fmt(subtotal)} {currency}</span>
+                    </div>
+                    {orderDiscAmt > 0 && (
+                      <div className="flex justify-between text-[12px] text-rose-500">
+                        <span>{ar ? "الخصم" : "Discount"}</span>
+                        <span className="font-medium tabular-nums">− {fmt(Math.round(orderDiscAmt))} {currency}</span>
+                      </div>
+                    )}
+                    {taxAmt > 0 && (
+                      <div className="flex justify-between text-[12px] text-muted-foreground">
+                        <span>{ar ? "الضريبة" : "Tax"} ({taxRate}%)</span>
+                        <span className="font-medium tabular-nums">+ {fmt(Math.round(taxAmt))} {currency}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-[13px] font-semibold border-t border-border/30 pt-2">
+                      <span>{ar ? "قيمة الطلب" : "Order Total"}</span>
+                      <span className="tabular-nums text-emerald-600">{fmt(Math.round(totalAmount))} {currency}</span>
                     </div>
                     {estimatedCost > 0 && (
                       <>
