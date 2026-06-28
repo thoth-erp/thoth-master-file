@@ -3,17 +3,21 @@ import { useLocation } from "wouter";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
+import { IMPORT_TEMPLATES, exportCSV } from "../lib/csv-export";
+import { CsvImport } from "../components/CsvImport";
 import {
   STATUS_META, TYPE_META,
   type PersonType, type Status,
 } from "../data/people";
 import type { Database } from "../lib/database.types";
 import {
-  Search, Plus, X, LayoutGrid, List,
+  Search, Plus, X, LayoutGrid, List, Upload, Download,
   ChevronLeft, ChevronRight, Mail, Phone, Building2,
   Check, AlertCircle, ChevronRight as ChevRight,
   Loader2,
 } from "lucide-react";
+
+const PEOPLE_IMPORT = IMPORT_TEMPLATES.find((t) => t.id === "people")!;
 
 type PersonRow = Database["public"]["Tables"]["people"]["Row"];
 type PersonMeta = Record<string, unknown>;
@@ -448,6 +452,8 @@ function PeopleDemo() {
   const [view, setView] = useState<ViewMode>("card");
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -461,7 +467,7 @@ function PeopleDemo() {
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [workspace?.id]);
+  }, [workspace?.id, reloadKey]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -516,13 +522,21 @@ function PeopleDemo() {
               {ar ? "الأشخاص" : "People"}
             </h1>
           </div>
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium shadow-sm hover:opacity-90 active:opacity-80 transition-opacity shrink-0 mt-1"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            {ar ? "إضافة شخص" : "Add Person"}
-          </button>
+          <div className="flex items-center gap-2 shrink-0 mt-1">
+            <button onClick={() => setShowImport(true)} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+              <Upload size={13} />{ar ? "استيراد" : "Import"}
+            </button>
+            <button onClick={() => exportCSV(people.map((p) => ({ name_en: p.name_en, name_ar: p.name_ar, email: p.email, phone: p.phone, role_en: (pm(p).role as string) || "" })), "contacts-export")} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+              <Download size={13} />{ar ? "تصدير" : "Export"}
+            </button>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium shadow-sm hover:opacity-90 active:opacity-80 transition-opacity"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              {ar ? "إضافة شخص" : "Add Person"}
+            </button>
+          </div>
         </div>
 
         {/* ── Toolbar ── */}
@@ -621,6 +635,16 @@ function PeopleDemo() {
       </div>
 
       <AddPersonModal open={modalOpen} onClose={() => setModalOpen(false)} onAdd={handleAdd} lang={lang} />
+      {showImport && (
+        <CsvImport
+          open={showImport}
+          onClose={() => setShowImport(false)}
+          template={PEOPLE_IMPORT}
+          adapter={getDataSource().people}
+          ar={ar}
+          onComplete={() => { setShowImport(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
     </>
   );
 }

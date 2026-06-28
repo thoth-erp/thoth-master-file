@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useLanguage } from "../context/LanguageContext";
 import { getDataSource } from "../lib/data-source";
 import { CsvImport } from "../components/CsvImport";
-import { IMPORT_TEMPLATES, downloadTemplate } from "../lib/csv-export";
+import { IMPORT_TEMPLATES, exportCSV } from "../lib/csv-export";
 import {
   ORG_TYPE_META, ORG_STATUS_META,
   type OrgType, type OrgStatus,
@@ -352,10 +352,18 @@ function OrgsPage() {
             {ar ? "المنظمات" : "Organizations"}
           </h1>
         </div>
-        <button className="flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium shadow-sm hover:opacity-90 transition-opacity shrink-0 mt-1">
-          <Plus size={14} strokeWidth={2.5} />
-          {ar ? "إضافة منظمة" : "Add Organization"}
-        </button>
+        <div className="flex items-center gap-2 shrink-0 mt-1">
+          <button onClick={() => setShowImport(true)} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            <Upload size={13} />{ar ? "استيراد" : "Import"}
+          </button>
+          <button onClick={() => exportCSV(orgs.map((o) => ({ name_en: o.name_en, name_ar: o.name_ar, sector: o.sector, headcount: omHeadcount(o) })), "customers-export")} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+            <Download size={13} />{ar ? "تصدير" : "Export"}
+          </button>
+          <button className="flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[13px] font-medium shadow-sm hover:opacity-90 transition-opacity">
+            <Plus size={14} strokeWidth={2.5} />
+            {ar ? "إضافة منظمة" : "Add Organization"}
+          </button>
+        </div>
       </div>
 
       {/* ── Summary strip ── */}
@@ -467,6 +475,16 @@ function OrgsPage() {
         <Pagination page={page} total={filtered.length} pageSize={pageSize} onPage={setPage} lang={lang} />
       )}
 
+      {showImport && (
+        <CsvImport
+          open={showImport}
+          onClose={() => setShowImport(false)}
+          template={ORG_IMPORT}
+          adapter={getDataSource().organizations}
+          ar={ar}
+          onComplete={() => { setShowImport(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
     </div>
   );
 }
