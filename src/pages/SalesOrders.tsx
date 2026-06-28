@@ -10,6 +10,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { isDemoMode } from "../lib/supabase";
 import { getDataSource } from "../lib/data-source";
+import { generateCode } from "../lib/code-generator";
 import { exportCSV } from "../lib/csv-export";
 import type { Database } from "../lib/database.types";
 import ConnectedSearch, { type SearchResult } from "../components/ConnectedSearch";
@@ -103,7 +104,7 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
   const [items, setItems] = useState<SOItem[]>([]);
 
   // Step 2: Details
-  const [soNumber] = useState(genSONumber());
+  const [soNumber] = useState(() => generateCode("sales_order"));
   const [projectName, setProjectName] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [dueDate, setDueDate] = useState("");

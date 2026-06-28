@@ -13,6 +13,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
 import { exportCSV } from "../lib/csv-export";
+import { generateCode, peekNextCode } from "../lib/code-generator";
 import type { Database } from "../lib/database.types";
 import type { ProductMeta } from "../lib/furniture-engine";
 import {
@@ -35,6 +36,8 @@ interface QuotItem {
   description: string;
   qty: number;
   unitPrice: number;
+  discount?: number;            // line discount amount/percent
+  discountType?: "pct" | "fixed";
   width?: number;
   height?: number;
   depth?: number;
@@ -62,6 +65,9 @@ interface QuotMeta {
   transport_cost?: number;
   installation_cost?: number;
   currency?: string;
+  order_discount?: number;       // whole-quote discount
+  order_discount_type?: "pct" | "fixed";
+  tax_rate?: number;             // VAT % applied after discount
   converted_to?: string; // sales_order ID
 }
 
@@ -69,8 +75,33 @@ function getQM(w: WorkItem): QuotMeta {
   return (w.metadata ?? {}) as QuotMeta;
 }
 
+/** Net amount for a single line after its own discount. */
+function lineNet(i: QuotItem): number {
+  const gross = i.qty * i.unitPrice;
+  if (!i.discount) return gross;
+  return i.discountType === "fixed"
+    ? Math.max(0, gross - i.discount)
+    : gross * (1 - Math.min(i.discount, 100) / 100);
+}
+
+/** Subtotal after line discounts (kept as calcTotal for existing call sites). */
 function calcTotal(items: QuotItem[]): number {
-  return items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  return items.reduce((s, i) => s + lineNet(i), 0);
+}
+
+/** Full breakdown: subtotal → order discount → tax → grand total. */
+function calcBreakdown(m: QuotMeta): { subtotal: number; orderDisc: number; taxable: number; tax: number; grand: number } {
+  const subtotal = calcTotal(m.items || []);
+  const od = m.order_discount || 0;
+  const orderDisc = od <= 0 ? 0 : (m.order_discount_type === "fixed" ? Math.min(od, subtotal) : subtotal * (Math.min(od, 100) / 100));
+  const taxable = subtotal - orderDisc;
+  const tax = taxable * ((m.tax_rate || 0) / 100);
+  return { subtotal, orderDisc, taxable, tax, grand: taxable + tax };
+}
+
+/** Grand total for a quotation (used by list + exports). */
+function calcGrand(m: QuotMeta): number {
+  return calcBreakdown(m).grand;
 }
 
 function calcCosts(m: QuotMeta): number {
@@ -184,7 +215,7 @@ function EditItemPopup({ item, index, onSave, onClose, ar, currency }: {
 }) {
   const [draft, setDraft] = useState<QuotItem>({ ...item });
   const set = (key: keyof QuotItem, val: unknown) => setDraft(prev => ({ ...prev, [key]: val }));
-  const lineTotal = draft.qty * draft.unitPrice;
+  const lineTotal = lineNet(draft);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -292,7 +323,25 @@ function EditItemPopup({ item, index, onSave, onClose, ar, currency }: {
               <div>
                 <label className="text-[9px] text-muted-foreground">{ar ? "الإجمالي" : "Total"}</label>
                 <div className="h-10 flex items-center px-3 text-[13px] font-semibold bg-primary/5 rounded-xl tabular-nums text-primary">
-                  {lineTotal.toLocaleString()} {currency}
+                  {Math.round(lineTotal).toLocaleString()} {currency}
+                </div>
+              </div>
+            </div>
+            {/* Line discount */}
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="col-span-2">
+                <label className="text-[9px] text-muted-foreground">{ar ? "خصم الصنف" : "Line Discount"}</label>
+                <input type="number" min={0} value={draft.discount ?? ""} onChange={e => set("discount", parseFloat(e.target.value) || 0)} placeholder="0" className={inputCls + " h-9"} />
+              </div>
+              <div>
+                <label className="text-[9px] text-muted-foreground">{ar ? "النوع" : "Type"}</label>
+                <div className="flex h-9 rounded-xl border border-border/60 overflow-hidden">
+                  {(["pct", "fixed"] as const).map((t) => (
+                    <button key={t} type="button" onClick={() => set("discountType", t)}
+                      className={`flex-1 text-[12px] font-medium transition-colors ${(draft.discountType ?? "pct") === t ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted/50"}`}>
+                      {t === "pct" ? "%" : currency}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -347,7 +396,7 @@ function ItemRow({ item, index, onChange, onRemove, onEdit, ar, products, curren
     });
   }, [item, index, onChange]);
 
-  const lineTotal = item.qty * item.unitPrice;
+  const lineTotal = lineNet(item);
 
   return (
     <div className="border border-border/40 rounded-xl p-4 bg-muted/10 space-y-3">
@@ -423,8 +472,9 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
 }) {
   const { workspace } = useAuth();
   const [form, setForm] = useState({
-    quotNumber: `QT-${String(Date.now()).slice(-6)}`,
+    quotNumber: peekNextCode("quotation"),
     customer: "", contactPerson: "", projectName: "", notes: "",
+    orderDiscount: "", orderDiscountType: "pct" as "pct" | "fixed", taxRate: "",
     quotDate: new Date().toISOString().slice(0, 10),
     validityDate: (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); })(),
     materialCost: "", laborCost: "", accessoriesCost: "", transportCost: "", installationCost: "",
@@ -455,7 +505,13 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
   function updateItem(i: number, item: QuotItem) { setItems((prev) => prev.map((it, idx) => idx === i ? item : it)); }
   function removeItem(i: number) { if (items.length > 1) setItems((prev) => prev.filter((_, idx) => idx !== i)); }
 
-  const sellingPrice = calcTotal(items);
+  const breakdown = calcBreakdown({
+    items,
+    order_discount: parseFloat(form.orderDiscount) || 0,
+    order_discount_type: form.orderDiscountType,
+    tax_rate: parseFloat(form.taxRate) || 0,
+  });
+  const sellingPrice = breakdown.grand;
   const totalCost = (parseFloat(form.materialCost) || 0) + (parseFloat(form.laborCost) || 0) + (parseFloat(form.accessoriesCost) || 0) + (parseFloat(form.transportCost) || 0) + (parseFloat(form.installationCost) || 0);
   const expectedProfit = sellingPrice - totalCost;
 
@@ -466,9 +522,12 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
     if (!workspace || !form.quotNumber.trim()) return;
     setLoading(true); setError(null);
     try {
+      // Mint the code (advancing the counter) only when the auto default is kept.
+      const auto = peekNextCode("quotation");
+      const quotNumber = form.quotNumber.trim() === auto ? generateCode("quotation") : form.quotNumber.trim();
       const created = await getDataSource().work_items.create(workspace.id, {
-        title_en: form.projectName.trim() || form.quotNumber,
-        title_ar: form.projectName.trim() || form.quotNumber,
+        title_en: form.projectName.trim() || quotNumber,
+        title_ar: form.projectName.trim() || quotNumber,
         type: "quotation" as WorkItem["type"],
         status: "draft" as WorkItem["status"],
         priority: "medium" as WorkItem["priority"],
@@ -476,7 +535,7 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
         organization_id: form.customer || null,
         progress: 0, tags: ["quotation"],
         metadata: {
-          quotation_number: form.quotNumber.trim(),
+          quotation_number: quotNumber,
           customer_id: form.customer || null,
           customer_name: customer?.name_en || null,
           contact_person: form.contactPerson.trim() || null,
@@ -490,6 +549,9 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
           accessories_cost: parseFloat(form.accessoriesCost) || 0,
           transport_cost: parseFloat(form.transportCost) || 0,
           installation_cost: parseFloat(form.installationCost) || 0,
+          order_discount: parseFloat(form.orderDiscount) || 0,
+          order_discount_type: form.orderDiscountType,
+          tax_rate: parseFloat(form.taxRate) || 0,
           currency,
         },
       });
@@ -614,6 +676,28 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
             </div>
           </div>
 
+          {/* Discount & tax controls */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>{ar ? "خصم على العرض" : "Order Discount"}</label>
+              <div className="flex gap-1.5">
+                <input type="number" min={0} value={form.orderDiscount} onChange={(e) => setForm((f) => ({ ...f, orderDiscount: e.target.value }))} placeholder="0" className={inputCls + " h-9"} />
+                <div className="flex rounded-xl border border-border/60 overflow-hidden shrink-0">
+                  {(["pct", "fixed"] as const).map((t) => (
+                    <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, orderDiscountType: t }))}
+                      className={`px-2.5 text-[12px] font-medium transition-colors ${form.orderDiscountType === t ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted/50"}`}>
+                      {t === "pct" ? "%" : currency}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>{ar ? "الضريبة %" : "Tax / VAT %"}</label>
+              <input type="number" min={0} value={form.taxRate} onChange={(e) => setForm((f) => ({ ...f, taxRate: e.target.value }))} placeholder="0" className={inputCls + " h-9"} />
+            </div>
+          </div>
+
           {/* Live Summary — auto-updates on every item change */}
           <div className="bg-muted/30 rounded-xl p-4 space-y-2 border border-border/30">
             <div className="flex items-center gap-1.5 mb-1">
@@ -621,25 +705,31 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
               <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{ar ? "حساب مباشر" : "Live Total"}</span>
             </div>
             <div className="flex justify-between text-[12px]">
-              <span className="text-muted-foreground">{ar ? "الأصناف" : "Items"} ({items.filter(i => i.product.trim()).length})</span>
-              <span className="font-medium tabular-nums">{sellingPrice.toLocaleString()} {currency}</span>
+              <span className="text-muted-foreground">{ar ? "الإجمالي الفرعي" : "Subtotal"} ({items.filter(i => i.product.trim()).length})</span>
+              <span className="font-medium tabular-nums">{breakdown.subtotal.toLocaleString()} {currency}</span>
             </div>
-            <div className="flex justify-between text-[12px]">
-              <span className="text-muted-foreground">{ar ? "التكلفة المتوقعة" : "Estimated Cost"}</span>
-              <span className="font-medium tabular-nums">{totalCost.toLocaleString()} {currency}</span>
-            </div>
-            {sellingPrice > 0 && totalCost > 0 && (
-              <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>{ar ? "هامش الربح" : "Margin"}</span>
-                <span className="tabular-nums">{((expectedProfit / sellingPrice) * 100).toFixed(1)}%</span>
+            {breakdown.orderDisc > 0 && (
+              <div className="flex justify-between text-[12px] text-rose-500">
+                <span>{ar ? "الخصم" : "Discount"}{form.orderDiscountType === "pct" ? ` (${form.orderDiscount}%)` : ""}</span>
+                <span className="font-medium tabular-nums">− {Math.round(breakdown.orderDisc).toLocaleString()} {currency}</span>
               </div>
             )}
-            <div className="flex justify-between text-[14px] font-semibold border-t border-border/40 pt-2">
-              <span>{ar ? "الربح المتوقع" : "Expected Profit"}</span>
-              <span className={`tabular-nums ${expectedProfit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
-                {expectedProfit.toLocaleString()} {currency}
-              </span>
+            {breakdown.tax > 0 && (
+              <div className="flex justify-between text-[12px] text-muted-foreground">
+                <span>{ar ? "الضريبة" : "Tax"} ({form.taxRate}%)</span>
+                <span className="font-medium tabular-nums">+ {Math.round(breakdown.tax).toLocaleString()} {currency}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-[15px] font-semibold border-t border-border/40 pt-2">
+              <span>{ar ? "الإجمالي" : "Grand Total"}</span>
+              <span className="tabular-nums text-emerald-600">{Math.round(breakdown.grand).toLocaleString()} {currency}</span>
             </div>
+            {totalCost > 0 && (
+              <div className="flex justify-between text-[11px] text-muted-foreground pt-1">
+                <span>{ar ? "الربح المتوقع" : "Est. Profit"} {sellingPrice > 0 ? `· ${((expectedProfit / sellingPrice) * 100).toFixed(0)}%` : ""}</span>
+                <span className={`tabular-nums ${expectedProfit >= 0 ? "text-emerald-600" : "text-rose-500"}`}>{Math.round(expectedProfit).toLocaleString()} {currency}</span>
+              </div>
+            )}
           </div>
 
           <div>
@@ -712,7 +802,7 @@ export default function Quotations() {
   const draftCount = quotations.filter((q) => q.status === "draft").length;
   const sentCount = quotations.filter((q) => q.status === "sent").length;
   const approvedCount = quotations.filter((q) => q.status === "approved").length;
-  const totalValue = quotations.reduce((s, q) => s + calcTotal(getQM(q).items || []), 0);
+  const totalValue = quotations.reduce((s, q) => s + calcGrand(getQM(q)), 0);
 
   // Status change
   async function updateStatus(id: string, newStatus: string) {
@@ -772,7 +862,7 @@ export default function Quotations() {
             <div className="flex items-center gap-2 shrink-0">
               {quotations.length > 0 && (
                 <button onClick={() => {
-                  const rows = quotations.map((q) => { const m = getQM(q); return { number: m.quotation_number, customer: m.customer_name, project: m.project_name, date: m.quotation_date, valid_until: m.validity_date, total: calcTotal(m.items || []), status: q.status }; });
+                  const rows = quotations.map((q) => { const m = getQM(q); return { number: m.quotation_number, customer: m.customer_name, project: m.project_name, date: m.quotation_date, valid_until: m.validity_date, total: calcGrand(m), status: q.status }; });
                   exportCSV(rows, `thoth-quotations-${new Date().toISOString().slice(0,10)}.csv`);
                 }} className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
                   <Download size={13} /> {ar ? "صدّر" : "Export"}
@@ -850,7 +940,7 @@ export default function Quotations() {
             {filtered.map((q) => {
               const m = getQM(q);
               const st = Q_STATUSES.find((s) => s.value === q.status) ?? Q_STATUSES[0];
-              const itemsTotal = calcTotal(m.items || []);
+              const itemsTotal = calcGrand(m);
               const itemCount = (m.items || []).length;
               const costs = calcCosts(m);
               const profit = itemsTotal - costs;

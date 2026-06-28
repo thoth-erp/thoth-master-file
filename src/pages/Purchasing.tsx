@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
+import { generateCode, peekNextCode } from "../lib/code-generator";
 import { exportCSV, downloadTemplate } from "../lib/csv-export";
 import type { Database } from "../lib/database.types";
 import {
@@ -276,7 +277,7 @@ function AddPRModal({ onClose, onAdd, ar, vendors, currency }: { onClose: () => 
 
 function AddPOModal({ onClose, onAdd, ar, vendors, currency }: { onClose: () => void; onAdd: (w: WorkItem) => void; ar: boolean; vendors: Org[]; currency: string }) {
   const { workspace } = useAuth();
-  const [form, setForm] = useState({ poNumber: "", title: "", vendor: "", amount: "", deliveryDate: "" });
+  const [form, setForm] = useState({ poNumber: peekNextCode("purchase_order"), title: "", vendor: "", amount: "", deliveryDate: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -285,6 +286,9 @@ function AddPOModal({ onClose, onAdd, ar, vendors, currency }: { onClose: () => 
     if (!workspace || !form.poNumber.trim() || !form.title.trim()) return;
     setLoading(true); setError(null);
     const vendor = vendors.find((v) => v.id === form.vendor);
+    // Mint the code (advancing the counter) only when the auto default is kept.
+    const auto = peekNextCode("purchase_order");
+    const poNumber = form.poNumber.trim() === auto ? generateCode("purchase_order") : form.poNumber.trim();
     try {
       const created = await getDataSource().work_items.create(workspace.id, {
         title_en: form.title.trim(), title_ar: form.title.trim(),
@@ -295,7 +299,7 @@ function AddPOModal({ onClose, onAdd, ar, vendors, currency }: { onClose: () => 
         organization_id: form.vendor || null,
         progress: 0, tags: ["purchasing"],
         metadata: {
-          po_number: form.poNumber.trim(),
+          po_number: poNumber,
           vendor_id: form.vendor || null,
           vendor_name: vendor?.name_en || null,
           estimated_amount: parseFloat(form.amount) || 0,
