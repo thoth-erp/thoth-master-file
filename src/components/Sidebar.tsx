@@ -13,6 +13,7 @@ import {
   BookOpen,
   Sparkles,
   Settings,
+  Package,
   ChevronLeft,
   ChevronRight,
   X,
@@ -169,6 +170,66 @@ const INTEL_NAV = [
   { id: "decisions",    icon: Target,   labelEn: "Decisions",    labelAr: "القرارات",  path: "/decisions" },
 ] as const;
 
+// ─── Genericization: terminology adapts to the chosen industry ──
+// Each nav id can be relabelled per industry. Anything not overridden falls
+// back to the neutral default label, so the app is never fashion-specific.
+type Term = { en: string; ar: string };
+const TERM_OVERRIDES: Record<string, Record<string, Term>> = {
+  fashion:       { products: { en: "Garments", ar: "الملابس" }, "inv-fabrics": { en: "Fabrics", ar: "الأقمشة" }, "site-visits": { en: "Fittings", ar: "القياسات" } },
+  furniture:     { products: { en: "Furniture", ar: "الأثاث" }, "inv-fabrics": { en: "Wood & Panels", ar: "الأخشاب والألواح" }, "site-visits": { en: "Site Visits", ar: "الزيارات" } },
+  manufacturing: { products: { en: "Products", ar: "المنتجات" }, "inv-fabrics": { en: "Raw Materials", ar: "المواد الخام" } },
+  retail:        { products: { en: "Products", ar: "المنتجات" }, "inv-fabrics": { en: "Stock", ar: "المخزون" }, "site-visits": { en: "Appointments", ar: "المواعيد" } },
+  food:          { products: { en: "Menu Items", ar: "الأصناف" }, "inv-fabrics": { en: "Ingredients", ar: "المكونات" } },
+  trading:       { products: { en: "Products", ar: "المنتجات" }, "inv-fabrics": { en: "Stock", ar: "المخزون" } },
+  services:      { products: { en: "Services", ar: "الخدمات" }, "inv-fabrics": { en: "Supplies", ar: "المستلزمات" }, "site-visits": { en: "Appointments", ar: "المواعيد" } },
+};
+function term(industry: string, id: string, fallbackEn: string, fallbackAr: string, ar: boolean): string {
+  const o = TERM_OVERRIDES[industry]?.[id];
+  return ar ? (o?.ar ?? fallbackAr) : (o?.en ?? fallbackEn);
+}
+
+// ─── Hierarchical menu (parent → children) ──────────────────
+// Leaves reference CORE_NAV / LOYALTY_NAV by id; groups collapse their children.
+type Leaf = { id: string; icon: React.ElementType; labelEn: string; labelAr: string; path: string };
+const LEAF_BY_ID: Record<string, Leaf> = Object.fromEntries(
+  [...CORE_NAV, ...LOYALTY_NAV].map((n) => [n.id, n as Leaf])
+);
+interface TreeNode {
+  id: string; icon: React.ElementType; labelEn: string; labelAr: string;
+  path?: string; module?: string;            // leaf if path present
+  children?: (string | Leaf)[];              // group if children present
+}
+const MENU: TreeNode[] = [
+  { id: "today", icon: LayoutDashboard, labelEn: "Today", labelAr: "اليوم", path: "/today" },
+  { id: "activity", icon: Activity, labelEn: "Activity", labelAr: "النشاط", path: "/activity" },
+  { id: "organizations", icon: Building2, labelEn: "Customers", labelAr: "العملاء", path: "/organizations" },
+  { id: "people", icon: Users, labelEn: "Contacts", labelAr: "جهات الاتصال", path: "/people" },
+  { id: "products", icon: Layers, labelEn: "Products", labelAr: "المنتجات", path: "/products", module: "inventory" },
+  { id: "designs", icon: PenTool, labelEn: "Designs", labelAr: "التصميمات", path: "/designs", module: "design" },
+  { id: "g-sales", icon: ShoppingBag, labelEn: "Sales", labelAr: "المبيعات", module: "sales", children: ["sales", "quotations", "orders", "pos"] },
+  { id: "g-production", icon: Factory, labelEn: "Production", labelAr: "الإنتاج", module: "production", children: ["production", "prod-exec", "quality", "work", "operations"] },
+  { id: "g-inventory", icon: Archive, labelEn: "Inventory", labelAr: "المخزون", module: "inventory", children: [
+    { id: "inv-overview", icon: Archive, labelEn: "Overview", labelAr: "نظرة عامة", path: "/inventory" },
+    { id: "inv-fabrics", icon: Layers, labelEn: "Fabrics", labelAr: "الأقمشة", path: "/inventory/fabrics" },
+    { id: "inv-materials", icon: Package, labelEn: "Materials", labelAr: "المواد", path: "/inventory/materials" },
+    { id: "inv-assets", icon: Wrench, labelEn: "Assets", labelAr: "الأصول", path: "/inventory/equipment" },
+  ] },
+  { id: "purchasing", icon: ShoppingCart, labelEn: "Purchasing", labelAr: "المشتريات", path: "/purchasing", module: "purchasing" },
+  { id: "site-visits", icon: MapPin, labelEn: "Site Visits", labelAr: "الزيارات", path: "/site-visits", module: "delivery" },
+  { id: "delivery", icon: Truck, labelEn: "Delivery", labelAr: "التسليم", path: "/delivery", module: "delivery" },
+  { id: "g-crm", icon: Heart, labelEn: "CRM", labelAr: "إدارة العملاء", module: "sales", children: ["crm", "crm-customers", "crm-pipeline"] },
+  { id: "g-finance", icon: Landmark, labelEn: "Finance", labelAr: "المالية", module: "finance", children: ["finance", "fin-dashboard", "fin-invoices", "fin-expenses", "fin-reports", "fin-bank", "fin-arap"] },
+  { id: "g-hr", icon: Users, labelEn: "HR", labelAr: "الموارد البشرية", module: "hr", children: ["hr", "hr-dashboard", "hr-employees", "hr-recruitment", "hr-compensation", "hr-training", "hr-performance", "hr-relations", "hr-compliance", "hr-analytics", "hr-payroll", "hr-org"] },
+  { id: "g-loyalty", icon: Gift, labelEn: "Loyalty", labelAr: "الولاء", module: "loyalty", children: ["loyalty", "loyalty-lookup", "loyalty-tx", "loyalty-rules", "loyalty-redemptions", "loyalty-campaigns", "loyalty-rewards", "loyalty-analytics", "loyalty-merge", "loyalty-notify", "loyalty-shopify", "loyalty-settings"] },
+  { id: "studio", icon: BookOpen, labelEn: "Studio", labelAr: "الاستوديو", path: "/studio" },
+  { id: "branches", icon: Building2, labelEn: "Branches", labelAr: "الفروع", path: "/branches" },
+  { id: "team", icon: UserPlus, labelEn: "Team", labelAr: "الفريق", path: "/team" },
+  { id: "g-insights", icon: BarChart3, labelEn: "Insights", labelAr: "التحليلات", module: "analytics", children: ["analytics", "reports"] },
+  { id: "tools", icon: Wrench, labelEn: "Tools", labelAr: "أدوات", path: "/tools" },
+  { id: "users", icon: Shield, labelEn: "Users", labelAr: "المستخدمين", path: "/users" },
+  { id: "mobile-apps", icon: Smartphone, labelEn: "Mobile Apps", labelAr: "تطبيقات", path: "/mobile-apps" },
+];
+
 // ─── THOTH symbol ─────────────────────────────────────────
 
 function getInitials(name: string): string {
@@ -231,6 +292,54 @@ function NavItem({ icon: Icon, label, path, isActive, collapsed, onClick }: NavI
         </div>
       )}
     </Link>
+  );
+}
+
+// ─── Collapsible parent group ─────────────────────────────
+
+function NavGroup({ node, collapsed, currentPath, ar, industry, onNavClick }: {
+  node: TreeNode; collapsed: boolean; currentPath: string; ar: boolean; industry: string; onNavClick?: () => void;
+}) {
+  const Icon = node.icon;
+  const children = (node.children || [])
+    .map((c) => (typeof c === "string" ? LEAF_BY_ID[c] : c))
+    .filter(Boolean) as Leaf[];
+  const anyActive = children.some((c) => currentPath.startsWith(c.path));
+  const [open, setOpen] = useState(anyActive);
+  useEffect(() => { if (anyActive) setOpen(true); }, [anyActive]);
+
+  // When the rail is collapsed, surface children as flat icon items.
+  if (collapsed) {
+    return (
+      <>
+        {children.map((c) => (
+          <NavItem key={c.id} id={c.id} icon={c.icon} label={term(industry, c.id, c.labelEn, c.labelAr, ar)}
+            path={c.path} isActive={currentPath.startsWith(c.path)} collapsed onClick={onNavClick} />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-150 select-none ${anyActive && !open ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"}`}
+      >
+        <Icon size={15} strokeWidth={anyActive ? 2 : 1.75} className="shrink-0" />
+        <span className="text-[13px] leading-none truncate flex-1 text-start">{term(industry, node.id, node.labelEn, node.labelAr, ar)}</span>
+        <ChevronRight size={13} className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""} ${ar ? "rotate-180" : ""}`} style={ar ? { transform: open ? "rotate(90deg)" : "rotate(180deg)" } : undefined} />
+      </button>
+      <div className={`overflow-hidden transition-all duration-200 ${open ? "max-h-[640px] opacity-100" : "max-h-0 opacity-0"}`}>
+        <div className="ms-3.5 ps-2.5 border-s border-border/40 mt-0.5 space-y-0.5 py-0.5">
+          {children.map((c) => (
+            <NavItem key={c.id} id={c.id} icon={c.icon} label={term(industry, c.id, c.labelEn, c.labelAr, ar)}
+              path={c.path} isActive={currentPath.startsWith(c.path)} collapsed={false} onClick={onNavClick} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -336,44 +445,19 @@ function SidebarContent({
           />
         ))}
 
-        {/* Core — filtered by enabled modules */}
-        <SectionLabel label={lang === "ar" ? "الأساسي" : "Core"} collapsed={collapsed} />
-        {CORE_NAV.filter((item) => {
-          const moduleKey = NAV_MODULE_MAP[item.id];
-          if (!moduleKey) return true; // always visible (foundational)
-          if (!enabledModules) return true; // no filtering if not configured
-          return enabledModules.includes(moduleKey);
-        }).map((item) => (
-          <NavItem
-            key={item.id}
-            id={item.id}
-            icon={item.icon}
-            label={lang === "ar" ? item.labelAr : item.labelEn}
-            path={item.path}
-            isActive={isActive(item.path)}
-            collapsed={collapsed}
-            onClick={onNavClick}
-          />
+        {/* Workspace — hierarchical, filtered by the modules enabled at onboarding */}
+        <SectionLabel label={lang === "ar" ? "مساحة العمل" : "Workspace"} collapsed={collapsed} />
+        {MENU.filter((node) => {
+          if (!node.module) return true;             // foundational, always visible
+          if (!enabledModules) return true;          // no filtering if not configured
+          return enabledModules.includes(node.module);
+        }).map((node) => (
+          node.children
+            ? <NavGroup key={node.id} node={node} collapsed={collapsed} currentPath={location} ar={lang === "ar"} industry={industry} onNavClick={onNavClick} />
+            : <NavItem key={node.id} id={node.id} icon={node.icon}
+                label={term(industry, node.id, node.labelEn, node.labelAr, lang === "ar")}
+                path={node.path!} isActive={isActive(node.path!)} collapsed={collapsed} onClick={onNavClick} />
         ))}
-
-        {/* Loyalty — only when the module is enabled */}
-        {(!enabledModules || enabledModules.includes("loyalty")) && (
-          <>
-            <SectionLabel label={lang === "ar" ? "الولاء" : "Loyalty"} collapsed={collapsed} />
-            {LOYALTY_NAV.map((item) => (
-              <NavItem
-                key={item.id}
-                id={item.id}
-                icon={item.icon}
-                label={lang === "ar" ? item.labelAr : item.labelEn}
-                path={item.path}
-                isActive={isActive(item.path)}
-                collapsed={collapsed}
-                onClick={onNavClick}
-              />
-            ))}
-          </>
-        )}
 
         {/* Intelligence */}
         <SectionLabel label={lang === "ar" ? "الذكاء" : "Intelligence"} collapsed={collapsed} />

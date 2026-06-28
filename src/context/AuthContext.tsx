@@ -164,11 +164,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     await authSignOut();
-    if (!isDemoMode) {
+    if (isDemoMode) {
+      // Demo has no real session — clear the onboarding gate so the app resets,
+      // then return to the public landing page.
+      localStorage.removeItem("thoth_onboarding");
+    } else {
       setUser(null);
       setSession(null);
       setWorkspace(null);
     }
+    window.location.href = "/welcome";
   }, []);
 
   return (
