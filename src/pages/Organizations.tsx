@@ -2,16 +2,20 @@ import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "../context/LanguageContext";
 import { getDataSource } from "../lib/data-source";
+import { CsvImport } from "../components/CsvImport";
+import { IMPORT_TEMPLATES, downloadTemplate } from "../lib/csv-export";
 import {
   ORG_TYPE_META, ORG_STATUS_META,
   type OrgType, type OrgStatus,
 } from "../data/organizations";
 import type { Database } from "../lib/database.types";
 import {
-  Search, Plus, X, LayoutGrid, List,
+  Search, Plus, X, LayoutGrid, List, Upload, Download,
   ChevronLeft, ChevronRight, MapPin, Users, GitBranch, Layers,
   Loader2,
 } from "lucide-react";
+
+const ORG_IMPORT = IMPORT_TEMPLATES.find((t) => t.id === "organizations")!;
 
 type OrgRow = Database["public"]["Tables"]["organizations"]["Row"];
 type OrgMeta = Record<string, unknown>;
@@ -277,6 +281,8 @@ function OrgsPage() {
   const [statusFilter, setStatusFilter] = useState<OrgStatus | "all">("all");
   const [view, setView]   = useState<"card" | "table">("card");
   const [page, setPage]   = useState(1);
+  const [showImport, setShowImport] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,7 +295,7 @@ function OrgsPage() {
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
