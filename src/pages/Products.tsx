@@ -14,16 +14,19 @@ import { useAuth } from "../context/AuthContext";
 import { isDemoMode } from "../lib/supabase";
 import { getDataSource } from "../lib/data-source";
 import { maybePushProductsToShopify } from "../lib/shopify-push";
-import { exportCSV } from "../lib/csv-export";
+import { exportCSV, IMPORT_TEMPLATES } from "../lib/csv-export";
+import { CsvImport } from "../components/CsvImport";
 import type { Database } from "../lib/database.types";
 import {
-  Package, Plus, Search, X, Loader2, AlertCircle, Download,
+  Package, Plus, Search, X, Loader2, AlertCircle, Download, Upload,
   ChevronRight, ChevronLeft, Layers, Ruler, DollarSign,
   CheckCircle2, AlertTriangle, ListTree, Wrench,
   Trash2, GripVertical, ArrowRight, Info, Clock,
   Scissors, Box, Paintbrush, ClipboardCheck, Truck as TruckIcon,
   Sparkles, FileText, Copy, ToggleLeft, Image, Edit3, ExternalLink,
 } from "lucide-react";
+
+const PRODUCTS_IMPORT = IMPORT_TEMPLATES.find((t) => t.id === "products")!;
 import {
   type MfgStage, type BOMLine, type ProductMeta, type Priority, type DependencyType,
   type ProductTemplate,
@@ -1072,6 +1075,8 @@ export default function Products() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
+  const [showImport, setShowImport] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Opens the creation flow: template studio first
   function openCreateFlow() {
@@ -1108,7 +1113,7 @@ export default function Products() {
     getDataSource().resources.list(wsId)
       .then(r => setResources(r as Resource[]))
       .finally(() => setLoading(false));
-  }, [workspace?.id]);
+  }, [workspace?.id, reloadKey]);
 
   const products = useMemo(() => resources.filter(r => r.type === "product" || (r.skills ?? []).includes("product")), [resources]);
 
@@ -1150,6 +1155,9 @@ export default function Products() {
                   <Download size={13} /> {ar ? "صدّر" : "Export"}
                 </button>
               )}
+              <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
+                <Upload size={13} /> {ar ? "استورد" : "Import"}
+              </button>
               <button onClick={openCreateFlow} className={btnPrimary + " h-9"}>
                 <Plus size={14} /> {ar ? "منتج جديد" : "New Product"}
               </button>
@@ -1296,6 +1304,17 @@ export default function Products() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showImport && (
+        <CsvImport
+          open={showImport}
+          onClose={() => setShowImport(false)}
+          template={PRODUCTS_IMPORT}
+          adapter={getDataSource().resources}
+          ar={ar}
+          onComplete={() => { setShowImport(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
     </div>
   );
 }
