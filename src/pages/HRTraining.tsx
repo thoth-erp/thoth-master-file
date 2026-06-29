@@ -188,7 +188,7 @@ export default function HRTraining() {
     },
     {
       label: ar ? "ساعات التدريب" : "Training Hours YTD",
-      value: trainingHoursYtd,
+      value: trainingHoursYTD,
       icon: Clock,
       color: "text-amber-600",
       bg: "bg-amber-50/80",

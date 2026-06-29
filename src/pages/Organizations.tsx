@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
 import { CsvImport } from "../components/CsvImport";
 import { IMPORT_TEMPLATES, exportCSV } from "../lib/csv-export";
@@ -271,6 +272,8 @@ const TABLE_PAGE = 8;
 
 function OrgsPage() {
   const { lang } = useLanguage();
+  const { workspace } = useAuth();
+  const wid = workspace?.id || "demo";
   const [, navigate] = useLocation();
   const ar = lang === "ar";
 
@@ -289,7 +292,7 @@ function OrgsPage() {
     (async () => {
       try {
         const ds = getDataSource();
-        const rows = await ds.organizations.list();
+        const rows = await ds.organizations.list(wid);
         if (!cancelled) setOrgs(rows);
       } catch (err) { console.error("Failed to load organizations:", err); }
       finally { if (!cancelled) setLoading(false); }

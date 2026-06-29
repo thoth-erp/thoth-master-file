@@ -10,7 +10,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
 import { exportCSV } from "../lib/csv-export";
-import { generateCode, type CodeSettings, loadCodeSettings } from "../lib/code-generator";
+import { generateCode, peekNextCode, type CodeSettings, loadCodeSettings } from "../lib/code-generator";
 import type { Database } from "../lib/database.types";
 import {
   Package, Plus, Search, X, Loader2, Download, ArrowLeft,
@@ -90,15 +90,15 @@ export default function InventoryMaterialsPage() {
   const [deleteItem, setDeleteItem] = useState<Resource | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [codeSettings] = useState<CodeSettings>(() => loadCodeSettings());
+  const wid = workspace?.id || "demo";
 
   useEffect(() => { loadMaterials(); }, []);
 
   async function loadMaterials() {
     setLoading(true);
     try {
-      const ds = getDataSource(workspace?.id || "demo");
-      const all = await ds.resources.list();
-      setItems(all.filter(r => r.type === "inventory" && (r.skills ?? []).includes("inventory")));
+      const all = await getDataSource().resources.list(wid);
+      setItems(all.filter(r => (r.type === "inventory" || (r.skills ?? []).includes("material")) && (r.skills ?? []).includes("inventory")));
     } catch (e) { console.error(e); }
     setLoading(false);
   }
@@ -127,50 +127,43 @@ export default function InventoryMaterialsPage() {
   }, [items]);
 
   const matImportTemplate: ImportTemplate = {
-    name: "materials",
-    columns: [
-      { key: "name", label: "Name", required: true },
-      { key: "sku", label: "SKU" },
-      { key: "category", label: "Category", required: true },
-      { key: "quantity", label: "Quantity", type: "number", required: true },
-      { key: "uom", label: "Unit (pcs/box/kg)" },
-      { key: "unit_cost", label: "Unit Cost", type: "number" },
-      { key: "supplier", label: "Supplier" },
-      { key: "brand", label: "Brand" },
-      { key: "location", label: "Location" },
-    ],
+    id: "materials",
+    labelEn: "Materials",
+    labelAr: "المواد",
+    headers: ["name", "sku", "category", "quantity", "uom", "unit_cost", "supplier", "brand", "location"],
+    requiredHeaders: ["name", "quantity"],
+    mapRow: (r) => ({
+      name_en: r.name,
+      name_ar: r.name,
+      type: "inventory",
+      skills: ["inventory", "material"],
+      metadata: {
+        sku: r.sku || generateCode("material", codeSettings),
+        category: r.category || "other",
+        quantity: parseFloat(r.quantity) || 0,
+        uom: r.uom || "pcs",
+        unit_cost: parseFloat(r.unit_cost) || 0,
+        supplier: r.supplier || "",
+        brand: r.brand || "",
+        location: r.location || "",
+        reorder_level: 0,
+        inv_status: "in_stock",
+      },
+    }),
   };
 
-  async function handleImport(rows: Record<string, unknown>[]) {
-    const ds = getDataSource(workspace?.id || "demo");
-    for (const row of rows) {
-      await ds.resources.create({
-        name_en: String(row.name || ""),
-        type: "inventory",
-        skills: ["inventory"],
-        metadata: {
-          sku: row.sku || generateCode("product", codeSettings),
-          category: row.category || "other",
-          quantity: row.quantity || 0,
-          uom: row.uom || "pcs",
-          unit_cost: row.unit_cost || 0,
-          supplier: row.supplier || "",
-          brand: row.brand || "",
-          location: row.location || "",
-          reorder_level: 0,
-          inv_status: "in_stock",
-        },
-      });
-    }
-    loadMaterials();
+  async function handleDelete() {
+    if (!deleteItem) return;
+    await getDataSource().resources.remove(wid, deleteItem.id);
+    setItems(prev => prev.filter(i => i.id !== deleteItem.id));
+    setDeleteItem(null);
   }
 
-  function handleDelete() {
-    if (!deleteItem) return;
-    const ds = getDataSource(workspace?.id || "demo");
-    ds.resources.delete(deleteItem.id).then(() => {
-      setItems(prev => prev.filter(i => i.id !== deleteItem.id));
-      setDeleteItem(null);
+  function handleSaved(r: Resource) {
+    setItems(prev => {
+      const idx = prev.findIndex(i => i.id === r.id);
+      if (idx >= 0) { const next = [...prev]; next[idx] = r; return next; }
+      return [r, ...prev];
     });
   }
 
@@ -313,8 +306,86 @@ export default function InventoryMaterialsPage() {
         )}
       </div>
 
-      {showImport && <CsvImport open={showImport} onClose={() => setShowImport(false)} template={matImportTemplate} adapter={getDataSource(workspace?.id || "demo").resources} ar={ar} onComplete={() => { setShowImport(false); loadMaterials(); }} />}
-      {deleteItem && <ConfirmDeleteModal onConfirm={handleDelete} onCancel={() => setDeleteItem(null)} ar={ar} title={ar ? "حذف المادة" : "Delete Material"} description={ar ? `هل تريد حذف "${deleteItem.name_en}"؟` : `Delete "${deleteItem.name_en}"?`} />}
+      {(showCreate || editItem) && (
+        <MaterialModal initial={editItem ?? undefined} nextSku={peekNextCode("material", codeSettings)} ar={ar} wid={wid}
+          onClose={() => { setShowCreate(false); setEditItem(null); }} onSaved={handleSaved} />
+      )}
+      {showImport && <CsvImport open={showImport} onClose={() => setShowImport(false)} template={matImportTemplate} adapter={getDataSource().resources} ar={ar} onComplete={() => { setShowImport(false); loadMaterials(); }} />}
+      {deleteItem && <ConfirmDeleteModal open onConfirm={handleDelete} onCancel={() => setDeleteItem(null)} ar={ar} title={ar ? "حذف المادة" : "Delete Material"} itemName={deleteItem.name_en} />}
+    </div>
+  );
+}
+
+// ─── Create / Edit Material modal ────────────────────────
+
+function MaterialModal({ initial, nextSku, ar, wid, onClose, onSaved }: {
+  initial?: Resource; nextSku: string; ar: boolean; wid: string;
+  onClose: () => void; onSaved: (r: Resource) => void;
+}) {
+  const m = initial ? getMatMeta(initial) : undefined;
+  const [form, setForm] = useState({
+    name: initial?.name_en ?? "",
+    sku: m?.sku ?? nextSku,
+    category: m?.category ?? MATERIAL_CATEGORIES[0].value,
+    quantity: m?.quantity?.toString() ?? "",
+    uom: m?.uom ?? "pcs",
+    unit_cost: m?.unit_cost?.toString() ?? "",
+    reorder_level: m?.reorder_level?.toString() ?? "",
+    supplier: m?.supplier ?? "",
+    brand: m?.brand ?? "",
+    location: m?.location ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      const qty = parseFloat(form.quantity) || 0;
+      const reorder = parseFloat(form.reorder_level) || 0;
+      const payload = {
+        name_en: form.name.trim(), name_ar: form.name.trim(), type: "inventory", skills: ["inventory", "material"],
+        metadata: {
+          sku: form.sku || generateCode("material"), category: form.category, quantity: qty, uom: form.uom,
+          unit_cost: parseFloat(form.unit_cost) || 0, reorder_level: reorder, supplier: form.supplier,
+          brand: form.brand, location: form.location, inv_status: computeStatus(qty, reorder),
+        } as Resource["metadata"],
+      };
+      const ds = getDataSource();
+      if (initial) { await ds.resources.update(wid, initial.id, payload); onSaved({ ...initial, ...payload } as Resource); }
+      else { const created = await ds.resources.create(wid, payload); onSaved((created ?? { ...payload, id: `demo-${Date.now()}` }) as Resource); }
+      onClose();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-background rounded-2xl border border-border/60 shadow-xl w-full max-w-[520px] max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background/95 backdrop-blur px-6 py-4 border-b border-border/40 flex items-center justify-between">
+          <h2 className="text-[16px] font-semibold" style={{ fontFamily: "var(--app-font-serif)" }}>{initial ? (ar ? "تعديل المادة" : "Edit Material") : (ar ? "إضافة مادة" : "Add Material")}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted"><X size={15} /></button>
+        </div>
+        <form onSubmit={submit} className="p-6 grid grid-cols-2 gap-3">
+          <div className="col-span-2"><label className={labelCls}>{ar ? "الاسم" : "Name"} <span className="text-rose-400">*</span></label>
+            <input value={form.name} onChange={e => set("name", e.target.value)} autoFocus className={inputCls} placeholder={ar ? "مثال: أزرار خشبية" : "e.g. Wooden Buttons"} /></div>
+          <div><label className={labelCls}>SKU</label><input value={form.sku} onChange={e => set("sku", e.target.value)} className={inputCls + " font-mono"} /></div>
+          <div><label className={labelCls}>{ar ? "الفئة" : "Category"}</label>
+            <select value={form.category} onChange={e => set("category", e.target.value)} className={selectCls}>{MATERIAL_CATEGORIES.map(c => <option key={c.value} value={c.value}>{ar ? c.ar : c.en}</option>)}</select></div>
+          <div><label className={labelCls}>{ar ? "الكمية" : "Quantity"}</label><input type="number" value={form.quantity} onChange={e => set("quantity", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "الوحدة" : "Unit"}</label>
+            <select value={form.uom} onChange={e => set("uom", e.target.value)} className={selectCls}>{UOMS.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
+          <div><label className={labelCls}>{ar ? "سعر الوحدة" : "Unit Cost"}</label><input type="number" value={form.unit_cost} onChange={e => set("unit_cost", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "حد إعادة الطلب" : "Reorder Level"}</label><input type="number" value={form.reorder_level} onChange={e => set("reorder_level", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "المورّد" : "Supplier"}</label><input value={form.supplier} onChange={e => set("supplier", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "الموقع" : "Location"}</label><input value={form.location} onChange={e => set("location", e.target.value)} className={inputCls} /></div>
+          <div className="col-span-2 flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className={btnSecondary}>{ar ? "إلغاء" : "Cancel"}</button>
+            <button type="submit" disabled={saving} className={btnPrimary}>{saving && <Loader2 size={14} className="animate-spin" />}{initial ? (ar ? "حفظ" : "Save") : (ar ? "إضافة" : "Add Material")}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

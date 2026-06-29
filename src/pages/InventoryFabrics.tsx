@@ -101,13 +101,14 @@ export default function InventoryFabricsPage() {
     loadFabrics();
   }, []);
 
+  const wid = workspace?.id || "demo";
+
   async function loadFabrics() {
     setLoading(true);
     try {
-      const ds = getDataSource(workspace?.id || "demo");
-      const all = await ds.resources.list();
+      const all = await getDataSource().resources.list(wid);
       const fabrics = all.filter(r =>
-        r.type === "inventory" && (r.skills ?? []).includes("inventory")
+        (r.type === "inventory" || (r.skills ?? []).includes("fabric")) && (r.skills ?? []).includes("inventory")
       );
       setItems(fabrics);
     } catch (e) { console.error(e); }
@@ -144,58 +145,47 @@ export default function InventoryFabricsPage() {
   }, [items]);
 
   const fabricImportTemplate: ImportTemplate = {
-    name: "fabrics",
-    columns: [
-      { key: "name", label: "Name", required: true },
-      { key: "sku", label: "SKU" },
-      { key: "category", label: "Category" },
-      { key: "color", label: "Color" },
-      { key: "composition", label: "Composition" },
-      { key: "gsm", label: "GSM", type: "number" },
-      { key: "width_cm", label: "Width (cm)", type: "number" },
-      { key: "quantity", label: "Quantity", type: "number", required: true },
-      { key: "uom", label: "Unit (m/yard/roll)" },
-      { key: "unit_cost", label: "Unit Cost", type: "number" },
-      { key: "supplier", label: "Supplier" },
-      { key: "brand", label: "Brand" },
-      { key: "location", label: "Location" },
-    ],
+    id: "fabrics",
+    labelEn: "Fabrics",
+    labelAr: "الأقمشة",
+    headers: ["name", "sku", "category", "color", "composition", "gsm", "width_cm", "quantity", "uom", "unit_cost", "supplier", "brand", "location"],
+    requiredHeaders: ["name", "quantity"],
+    mapRow: (r) => ({
+      name_en: r.name,
+      name_ar: r.name,
+      type: "inventory",
+      skills: ["inventory", "fabric"],
+      metadata: {
+        sku: r.sku || generateCode("fabric", codeSettings),
+        category: r.category || "",
+        color: r.color || "",
+        composition: r.composition || "",
+        gsm: parseFloat(r.gsm) || null,
+        width_cm: parseFloat(r.width_cm) || null,
+        quantity: parseFloat(r.quantity) || 0,
+        uom: r.uom || "m",
+        unit_cost: parseFloat(r.unit_cost) || 0,
+        supplier: r.supplier || "",
+        brand: r.brand || "",
+        location: r.location || "",
+        reorder_level: 0,
+        inv_status: "in_stock",
+      },
+    }),
   };
 
-  async function handleImport(rows: Record<string, unknown>[]) {
-    const ds = getDataSource(workspace?.id || "demo");
-    for (const row of rows) {
-      await ds.resources.create({
-        name_en: String(row.name || ""),
-        type: "inventory",
-        skills: ["inventory"],
-        metadata: {
-          sku: row.sku || generateCode("product", codeSettings),
-          category: row.category || "",
-          color: row.color || "",
-          composition: row.composition || "",
-          gsm: row.gsm || null,
-          width_cm: row.width_cm || null,
-          quantity: row.quantity || 0,
-          uom: row.uom || "m",
-          unit_cost: row.unit_cost || 0,
-          supplier: row.supplier || "",
-          brand: row.brand || "",
-          location: row.location || "",
-          reorder_level: 0,
-          inv_status: "in_stock",
-        },
-      });
-    }
-    loadFabrics();
+  async function handleDelete() {
+    if (!deleteItem) return;
+    await getDataSource().resources.remove(wid, deleteItem.id);
+    setItems(prev => prev.filter(i => i.id !== deleteItem.id));
+    setDeleteItem(null);
   }
 
-  function handleDelete() {
-    if (!deleteItem) return;
-    const ds = getDataSource(workspace?.id || "demo");
-    ds.resources.delete(deleteItem.id).then(() => {
-      setItems(prev => prev.filter(i => i.id !== deleteItem.id));
-      setDeleteItem(null);
+  function handleSaved(r: Resource) {
+    setItems(prev => {
+      const idx = prev.findIndex(i => i.id === r.id);
+      if (idx >= 0) { const next = [...prev]; next[idx] = r; return next; }
+      return [r, ...prev];
     });
   }
 
@@ -322,15 +312,119 @@ export default function InventoryFabricsPage() {
         )}
       </div>
 
+      {/* Create / Edit */}
+      {(showCreate || editItem) && (
+        <FabricModal
+          initial={editItem ?? undefined}
+          nextSku={peekNextCode("fabric", codeSettings)}
+          ar={ar}
+          wid={wid}
+          onClose={() => { setShowCreate(false); setEditItem(null); }}
+          onSaved={handleSaved}
+        />
+      )}
+
       {/* Import Dialog */}
       {showImport && (
-        <CsvImport open={showImport} onClose={() => setShowImport(false)} template={fabricImportTemplate} adapter={getDataSource(workspace?.id || "demo").resources} ar={ar} onComplete={() => { setShowImport(false); loadFabrics(); }} />
+        <CsvImport open={showImport} onClose={() => setShowImport(false)} template={fabricImportTemplate} adapter={getDataSource().resources} ar={ar} onComplete={() => { setShowImport(false); loadFabrics(); }} />
       )}
 
       {/* Delete Confirmation */}
       {deleteItem && (
-        <ConfirmDeleteModal onConfirm={handleDelete} onCancel={() => setDeleteItem(null)} ar={ar} title={ar ? "حذف القماش" : "Delete Fabric"} description={ar ? `هل تريد حذف "${deleteItem.name_en}"؟` : `Delete "${deleteItem.name_en}"?`} />
+        <ConfirmDeleteModal open onConfirm={handleDelete} onCancel={() => setDeleteItem(null)} ar={ar} title={ar ? "حذف القماش" : "Delete Fabric"} itemName={deleteItem.name_en} />
       )}
+    </div>
+  );
+}
+
+// ─── Create / Edit Fabric modal ──────────────────────────
+
+function FabricModal({ initial, nextSku, ar, wid, onClose, onSaved }: {
+  initial?: Resource; nextSku: string; ar: boolean; wid: string;
+  onClose: () => void; onSaved: (r: Resource) => void;
+}) {
+  const m = initial ? getFabricMeta(initial) : undefined;
+  const [form, setForm] = useState({
+    name: initial?.name_en ?? "",
+    sku: m?.sku ?? nextSku,
+    category: m?.category ?? FABRIC_CATEGORIES[0],
+    color: m?.color ?? "",
+    composition: m?.composition ?? "",
+    gsm: m?.gsm?.toString() ?? "",
+    width_cm: m?.width_cm?.toString() ?? "",
+    quantity: m?.quantity?.toString() ?? "",
+    uom: m?.uom ?? "m",
+    unit_cost: m?.unit_cost?.toString() ?? "",
+    reorder_level: m?.reorder_level?.toString() ?? "",
+    supplier: m?.supplier ?? "",
+    location: m?.location ?? "",
+    notes: m?.notes ?? "",
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      const qty = parseFloat(form.quantity) || 0;
+      const reorder = parseFloat(form.reorder_level) || 0;
+      const metadata = {
+        sku: form.sku || generateCode("fabric"),
+        category: form.category, color: form.color, composition: form.composition,
+        gsm: parseFloat(form.gsm) || null, width_cm: parseFloat(form.width_cm) || null,
+        quantity: qty, uom: form.uom, unit_cost: parseFloat(form.unit_cost) || 0,
+        reorder_level: reorder, supplier: form.supplier, location: form.location,
+        notes: form.notes, inv_status: computeStatus(qty, reorder),
+      };
+      const payload = { name_en: form.name.trim(), name_ar: form.name.trim(), type: "inventory", skills: ["inventory", "fabric"], metadata: metadata as Resource["metadata"] };
+      const ds = getDataSource();
+      if (initial) {
+        await ds.resources.update(wid, initial.id, payload);
+        onSaved({ ...initial, ...payload } as Resource);
+      } else {
+        const created = await ds.resources.create(wid, payload);
+        onSaved((created ?? { ...payload, id: `demo-${Date.now()}` }) as Resource);
+      }
+      onClose();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-background rounded-2xl border border-border/60 shadow-xl w-full max-w-[560px] max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
+        <div className="sticky top-0 bg-background/95 backdrop-blur px-6 py-4 border-b border-border/40 flex items-center justify-between">
+          <h2 className="text-[16px] font-semibold" style={{ fontFamily: "var(--app-font-serif)" }}>{initial ? (ar ? "تعديل القماش" : "Edit Fabric") : (ar ? "إضافة قماش" : "Add Fabric")}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted"><X size={15} /></button>
+        </div>
+        <form onSubmit={submit} className="p-6 grid grid-cols-2 gap-3">
+          <div className="col-span-2"><label className={labelCls}>{ar ? "الاسم" : "Name"} <span className="text-rose-400">*</span></label>
+            <input value={form.name} onChange={e => set("name", e.target.value)} autoFocus className={inputCls} placeholder={ar ? "مثال: قطن مصري" : "e.g. Egyptian Cotton"} /></div>
+          <div><label className={labelCls}>SKU</label><input value={form.sku} onChange={e => set("sku", e.target.value)} className={inputCls + " font-mono"} /></div>
+          <div><label className={labelCls}>{ar ? "الفئة" : "Category"}</label>
+            <select value={form.category} onChange={e => set("category", e.target.value)} className={selectCls}>{FABRIC_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+          <div><label className={labelCls}>{ar ? "اللون" : "Color"}</label>
+            <div className="flex gap-1.5 items-center">
+              <input value={form.color} onChange={e => set("color", e.target.value)} className={inputCls} placeholder="#1a1a1a" />
+              {form.color && <span className="w-9 h-9 rounded-lg border border-border/40 shrink-0" style={{ background: form.color }} />}
+            </div></div>
+          <div><label className={labelCls}>{ar ? "التركيب" : "Composition"}</label><input value={form.composition} onChange={e => set("composition", e.target.value)} className={inputCls} placeholder="100% Cotton" /></div>
+          <div><label className={labelCls}>GSM</label><input type="number" value={form.gsm} onChange={e => set("gsm", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "العرض (سم)" : "Width (cm)"}</label><input type="number" value={form.width_cm} onChange={e => set("width_cm", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "الكمية" : "Quantity"}</label><input type="number" value={form.quantity} onChange={e => set("quantity", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "الوحدة" : "Unit"}</label>
+            <select value={form.uom} onChange={e => set("uom", e.target.value)} className={selectCls}>{UOMS.map(u => <option key={u} value={u}>{u}</option>)}</select></div>
+          <div><label className={labelCls}>{ar ? "سعر الوحدة" : "Unit Cost"}</label><input type="number" value={form.unit_cost} onChange={e => set("unit_cost", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "حد إعادة الطلب" : "Reorder Level"}</label><input type="number" value={form.reorder_level} onChange={e => set("reorder_level", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "المورّد" : "Supplier"}</label><input value={form.supplier} onChange={e => set("supplier", e.target.value)} className={inputCls} /></div>
+          <div><label className={labelCls}>{ar ? "الموقع" : "Location"}</label><input value={form.location} onChange={e => set("location", e.target.value)} className={inputCls} /></div>
+          <div className="col-span-2 flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className={btnSecondary}>{ar ? "إلغاء" : "Cancel"}</button>
+            <button type="submit" disabled={saving} className={btnPrimary}>{saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}{initial ? (ar ? "حفظ" : "Save") : (ar ? "إضافة" : "Add Fabric")}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

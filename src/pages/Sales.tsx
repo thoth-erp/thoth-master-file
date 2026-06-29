@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
 import {
   formatCurrency, formatCurrencyAr,
@@ -479,6 +480,8 @@ function DealListView({ deals, lang, onNavigate }: {
 
 function SalesPage() {
   const { lang } = useLanguage();
+  const { workspace } = useAuth();
+  const wid = workspace?.id || "demo";
   const [, navigate] = useLocation();
   const ar = lang === "ar";
   const fmtVal = ar ? formatCurrencyAr : formatCurrency;
@@ -496,7 +499,7 @@ function SalesPage() {
     (async () => {
       try {
         const ds = getDataSource();
-        const rows = await ds.deals.list();
+        const rows = await ds.deals.list(wid);
         if (!cancelled) setDeals(rows);
       } catch (err) { console.error("Failed to load deals:", err); }
       finally { if (!cancelled) setLoading(false); }

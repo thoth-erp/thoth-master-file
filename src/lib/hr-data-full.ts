@@ -11,6 +11,10 @@
  * 7. HR Analytics & Strategy
  */
 
+// Payroll data lives in hr-data; re-export so consumers importing it from this
+// module resolve correctly (was undefined → runtime crash on HR_PAYROLL.filter).
+export { HR_PAYROLL } from "./hr-data";
+
 const W = "demo";
 const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
 const ts = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString();

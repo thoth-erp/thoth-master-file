@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
 import {
   fmtCurrency, INVOICE_STATUS_META, PAYMENT_METHOD_META,
@@ -47,6 +48,8 @@ const INV_STATUS_FILTERS: { value: InvoiceStatus | "all"; en: string; ar: string
 
 function FinancePage() {
   const { lang } = useLanguage();
+  const { workspace } = useAuth();
+  const wid = workspace?.id || "demo";
   const [, navigate] = useLocation();
   const ar = lang === "ar";
   const fmt = (v: number) => fmtCurrency(v, "SAR", ar ? "ar-SA" : "en-SA");
@@ -66,9 +69,9 @@ function FinancePage() {
       try {
         const ds = getDataSource();
         const [inv, pay, exp] = await Promise.all([
-          ds.invoices.list(),
-          ds.payments.list(),
-          ds.expenses.list(),
+          ds.invoices.list(wid),
+          ds.payments.list(wid),
+          ds.expenses.list(wid),
         ]);
         if (!cancelled) { setInvoices(inv); setPayments(pay); setExpenses(exp); }
       } catch (err) { console.error("Failed to load finance data:", err); }
