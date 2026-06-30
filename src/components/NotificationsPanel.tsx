@@ -91,7 +91,7 @@ export function NotificationsPanel({ open, onClose }: Props) {
   async function markRead(id: string) {
     const sb = getSupabaseClient();
     if (!sb) return;
-    await sb.from("notifications").update({ status: "read" }).eq("id", id);
+    await (sb.from("notifications") as any).update({ status: "read" }).eq("id", id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, status: "read" } : n));
   }
 
@@ -99,7 +99,7 @@ export function NotificationsPanel({ open, onClose }: Props) {
     if (!workspace) return;
     const sb = getSupabaseClient();
     if (!sb) return;
-    await sb.from("notifications").update({ status: "read" }).eq("workspace_id", workspace.id).eq("status", "unread");
+    await (sb.from("notifications") as any).update({ status: "read" }).eq("workspace_id", workspace.id).eq("status", "unread");
     setNotifications(prev => prev.map(n => ({ ...n, status: "read" })));
   }
 

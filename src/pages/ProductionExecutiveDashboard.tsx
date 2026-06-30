@@ -501,7 +501,7 @@ function CostAnalysis({ orders, ar }: { orders: ProductionOrder[]; ar: boolean }
       actual += o.actual_cost;
       material += o.material_cost;
       labor += o.labor_cost;
-      waste += o.waste_cost;
+      waste += (o as any).waste_cost || 0;
     }
     return { estimated, actual, material, labor, waste, variance: actual - estimated };
   }, [orders]);

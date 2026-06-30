@@ -150,8 +150,8 @@ function rowToResource(row: Record<string, unknown>): Resource {
     id: (row.id as string) || "",
     nameEn: (row.name_en as string) || "",
     nameAr: (row.name_ar as string) || "",
-    type: (row.type as string) || "equipment",
-    status: (meta.status as string) || "active",
+    type: (row.type as any) || "equipment",
+    status: (meta.status as any) || "active",
     utilization: (row.utilization as number) || 0,
     descEn: (meta.descEn as string) || "",
     descAr: (meta.descAr as string) || "",
@@ -169,7 +169,7 @@ function rowToResource(row: Record<string, unknown>): Resource {
     relatedWorkId: (meta.relatedWorkId as string) || undefined,
     purchaseDateEn: (meta.purchaseDateEn as string) || "",
     purchaseDateAr: (meta.purchaseDateAr as string) || "",
-    maintenance: (meta.maintenance as Array<{ dateEn: string; dateAr: string; type: string; status: string; noteEn?: string; noteAr?: string }>) || [],
+    maintenance: (meta.maintenance as any) || [],
   };
 }
 
@@ -230,7 +230,7 @@ function rowToPerson(row: Record<string, unknown>): Person {
     lastContactEn: (meta.lastContactEn as string) || "",
     lastContactAr: (meta.lastContactAr as string) || "",
     roles: (meta.roles as Person["roles"]) || [],
-    metrics: (meta.metrics as Person["metrics"]) || { dealsClosed: 0, totalRevenue: 0, avgResponseTime: "", lastActive: "" },
+    metrics: (meta.metrics as Person["metrics"]) || ({ dealsClosed: 0, totalRevenue: 0, avgResponseTime: "", lastActive: "" } as any),
     activity: (meta.activity as Person["activity"]) || [],
     notes: (meta.notes as Person["notes"]) || [],
     files: (meta.files as Person["files"]) || [],

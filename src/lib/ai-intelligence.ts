@@ -196,7 +196,7 @@ export function detectAnomalies(): Anomaly[] {
     if (total > 200000) {
       anomalies.push({
         id: `anom-exp-${cat}`, module: "finance", type: "threshold_breach",
-        severity: "warning",
+        severity: "medium",
         title: `High expense category: ${cat}`,
         title_ar: `فئة مصروفات عالية: ${cat}`,
         description: `${cat} expenses total ${total.toLocaleString()} EGP`,

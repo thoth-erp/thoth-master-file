@@ -298,7 +298,7 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
       if (!supabase) return null;
       const { data, error } = await supabase
         .from(table as string)
-        .insert({ ...payload, workspace_id: workspaceId })
+        .insert({ ...payload, workspace_id: workspaceId } as never)
         .select()
         .single();
       if (error) { console.error(`[DS] ${table} create error`, error); return null; }
@@ -309,7 +309,7 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
       if (!supabase) return null;
       const { data, error } = await supabase
         .from(table as string)
-        .update({ ...payload, updated_at: new Date().toISOString() })
+        .update({ ...payload, updated_at: new Date().toISOString() } as never)
         .eq("workspace_id", workspaceId)
         .eq("id", id)
         .select()
@@ -470,9 +470,9 @@ const liveDataSource: DataSource = {
   pos_transactions: makeSupabaseAdapter("pos_transactions"),
   pos_transaction_items: makeSupabaseAdapter("pos_transaction_items"),
   branch_inventory: makeSupabaseAdapter("branch_inventory"),
-  stock_movements: makeSupabaseAdapter("stock_movements"),
-  workspace_invitations: makeSupabaseAdapter("workspace_invitations"),
-  notifications: makeSupabaseAdapter("notifications"),
+  stock_movements: makeSupabaseAdapter("stock_movements" as never),
+  workspace_invitations: makeSupabaseAdapter("workspace_invitations" as never),
+  notifications: makeSupabaseAdapter("notifications" as never),
 };
 
 // ─── Public API ────────────────────────────────────────────

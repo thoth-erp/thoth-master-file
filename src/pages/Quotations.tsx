@@ -553,7 +553,7 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
           order_discount_type: form.orderDiscountType,
           tax_rate: parseFloat(form.taxRate) || 0,
           currency,
-        },
+        } as never,
       });
       if (created) onAdd(created as WorkItem);
       onClose();
@@ -806,7 +806,7 @@ export default function Quotations() {
 
   // Status change
   async function updateStatus(id: string, newStatus: string) {
-    await getDataSource().work_items.update(workspace?.id ?? "", id, { status: newStatus });
+    await getDataSource().work_items.update(workspace?.id ?? "", id, { status: newStatus as never });
     setWorkItems((prev) => prev.map((w) => w.id === id ? { ...w, status: newStatus as WorkItem["status"] } : w));
   }
 
@@ -832,14 +832,14 @@ export default function Quotations() {
       due_date: quot.due_date,
       organization_id: quot.organization_id,
       progress: 0, tags: ["sales_order"],
-      metadata: { ...m, source_quotation: quot.id, source_quotation_number: m.quotation_number },
+      metadata: { ...m, source_quotation: quot.id, source_quotation_number: m.quotation_number } as never,
     });
     if (created) {
       // Mark quotation as converted
       await getDataSource().work_items.update(workspace?.id ?? "", quot.id, {
         status: "converted",
         metadata: { ...m, converted_to: (created as WorkItem).id },
-      } as Partial<WorkItem>);
+      } as unknown as Partial<WorkItem>);
       setWorkItems((prev) => [created as WorkItem, ...prev.map((w) => w.id === quot.id ? { ...w, status: "converted" as WorkItem["status"] } : w)]);
     }
   }

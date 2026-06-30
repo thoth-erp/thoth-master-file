@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useLanguage } from "../context/LanguageContext";
 import { HR_EMPLOYEES } from "../lib/hr-data";
 import {
@@ -173,8 +173,8 @@ export default function HRPerformance() {
 
   const cardV = {
     hidden: { opacity: 0, y: 12 },
-    visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] } }),
-  };
+    visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } }),
+  } satisfies Variants;
 
   const tabs = [
     { key: "goals" as const, label: "Goals", label_ar: "الأهداف", icon: Target },

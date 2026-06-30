@@ -5,7 +5,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useLanguage } from "../context/LanguageContext";
 import {
   HR_COMPLIANCE,
@@ -29,9 +29,9 @@ const cardV = {
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: i * 0.04, duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: i * 0.04, duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
   }),
-};
+} satisfies Variants;
 
 const TYPE_META: Record<string, { en: string; ar: string; icon: typeof ShieldCheck; color: string; bg: string; border: string }> = {
   contract: { en: "Contract", ar: "عقد", icon: FileText, color: "text-blue-400", bg: "bg-blue-500/15", border: "border-blue-500/30" },

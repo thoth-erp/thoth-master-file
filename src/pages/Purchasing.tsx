@@ -418,7 +418,7 @@ export default function Purchasing() {
 
   // Approval action
   async function updateStatus(id: string, newStatus: string) {
-    await getDataSource().work_items.update(workspace?.id ?? "", id, { status: newStatus });
+    await getDataSource().work_items.update(workspace?.id ?? "", id, { status: newStatus as never });
     setWorkItems((prev) => prev.map((w) => w.id === id ? { ...w, status: newStatus as WorkItem["status"] } : w));
   }
 

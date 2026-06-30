@@ -153,7 +153,7 @@ function POModal({ onClose, onSaved, orders, designs, editPO, ar, workspaceId }:
             <div><label className={labelCls}>{ar ? "رقم أمر التشغيل" : "PO Number"}</label>
               <input className={inputCls} value={poNumber} onChange={e => setPONumber(e.target.value)} /></div>
             <div><label className={labelCls}>{ar ? "الأولوية" : "Priority"}</label>
-              <select className={inputCls} value={priority} onChange={e => setPriority(e.target.value)}>
+              <select className={inputCls} value={priority} onChange={e => setPriority(e.target.value as never)}>
                 {PRIORITIES.map(p => <option key={p.value} value={p.value}>{ar ? p.ar : p.en}</option>)}
               </select></div>
           </div>
@@ -267,7 +267,7 @@ function CuttingModal({ onClose, onSaved, poId, editItem, ar, workspaceId }: {
             <div><label className={labelCls}>{ar ? "الكمية" : "Qty"}</label>
               <input type="number" className={inputCls} value={qty} onChange={e => setQty(e.target.value)} /></div>
             <div><label className={labelCls}>{ar ? "اتجاه الألياف" : "Grain"}</label>
-              <select className={inputCls} value={grain} onChange={e => setGrain(e.target.value)}>
+              <select className={inputCls} value={grain} onChange={e => setGrain(e.target.value as never)}>
                 {GRAIN_DIRS.map(g => <option key={g.value} value={g.value}>{ar ? g.ar : g.en}</option>)}
               </select></div>
           </div>

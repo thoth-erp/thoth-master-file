@@ -1189,7 +1189,7 @@ export const DEMO_VENDORS: T<"organizations">[] = [
     tags: ["vendor"], metadata: { org_type: "vendor", vendor_category: "material", payment_terms: "Net 30", country: "Saudi Arabia", city: "Riyadh", notes: "HPL, laminates, countertop surfaces." },
     created_at: ts(250), updated_at: ts(29),
   },
-];
+] as unknown as T<"organizations">[];
 
 // ─── Inventory Resources ─────────────────────────────────
 

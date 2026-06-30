@@ -294,7 +294,7 @@ function FinancePage() {
               {filteredExp.map((exp) => {
                 const vendorEn = ((exp as unknown as Record<string, string>).vendor_en) || "";
                 const vendorAr = ((exp as unknown as Record<string, string>).vendor_ar) || vendorEn;
-                const cm = EXPENSE_CATEGORY_META[(exp.category || "materials") as keyof typeof EXPENSE_CATEGORY_META] ?? EXPENSE_CATEGORY_META.materials;
+                const cm = EXPENSE_CATEGORY_META[(exp.category || "other") as keyof typeof EXPENSE_CATEGORY_META] ?? EXPENSE_CATEGORY_META.other;
                 const status = ((exp as unknown as Record<string, string>).status) || "paid";
                 const es = EXPENSE_STATUS_META[status as keyof typeof EXPENSE_STATUS_META] ?? EXPENSE_STATUS_META.paid;
                 const dateStr = ar ? ((exp as unknown as Record<string, string>).date || "") : ((exp as unknown as Record<string, string>).date || "");

@@ -93,7 +93,7 @@ export default function FinanceARAP() {
       const diffDays = Math.floor((now.getTime() - due.getTime()) / 86400000);
       const daysOverdue = diffDays > 0 ? diffDays : 0;
       let apStatus: string = e.status;
-      if (e.status === "paid") apStatus = "paid";
+      if ((e.status as string) === "paid") apStatus = "paid";
       else if (daysOverdue > 0 && e.status !== "paid") apStatus = "pending";
       else if (e.status === "approved") apStatus = "approved";
       else if (e.status === "draft") apStatus = "draft";

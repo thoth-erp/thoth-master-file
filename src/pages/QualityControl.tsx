@@ -235,11 +235,11 @@ function DefectModal({ onClose, onSaved, inspectionId, editDefect, ar, workspace
             <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)} placeholder={ar ? "مثال: خدش على السطح" : "e.g. Surface scratch"} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className={labelCls}>{ar ? "الخطورة" : "Severity"}</label>
-              <select className={inputCls} value={severity} onChange={e => setSeverity(e.target.value)}>
+              <select className={inputCls} value={severity} onChange={e => setSeverity(e.target.value as never)}>
                 {SEVERITIES.map(s => <option key={s.value} value={s.value}>{ar ? s.ar : s.en}</option>)}
               </select></div>
             <div><label className={labelCls}>{ar ? "التصنيف" : "Category"}</label>
-              <select className={inputCls} value={category} onChange={e => setCategory(e.target.value)}>
+              <select className={inputCls} value={category} onChange={e => setCategory(e.target.value as never)}>
                 {DEFECT_CATEGORIES.map(c => <option key={c.value} value={c.value}>{ar ? c.ar : c.en}</option>)}
               </select></div>
           </div>

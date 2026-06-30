@@ -37,7 +37,7 @@ interface HRMeta {
 function getHR(person: Person): HRMeta {
   const m = (person.metadata ?? {}) as Record<string, unknown>;
   return {
-    employee_type: (m.employee_type as string) || undefined,
+    employee_type: (m.employee_type as any) || undefined,
     department: (m.department as string) || undefined,
     job_title: (m.job_title as string) || undefined,
     manager_id: (m.manager_id as string) || undefined,

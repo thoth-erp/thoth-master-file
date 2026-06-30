@@ -55,6 +55,8 @@ export interface Database {
           role_ar: string | null;
           organization_id: string | null;
           avatar_url: string | null;
+          type?: string;
+          status?: string;
           tags: string[];
           metadata: Json;
           created_at: string;
@@ -74,6 +76,11 @@ export interface Database {
           health_score: number;
           headcount: number | null;
           website: string | null;
+          type?: string;
+          status?: string;
+          industry?: string;
+          phone?: string | null;
+          email?: string | null;
           tags: string[];
           metadata: Json;
           created_at: string;
@@ -88,7 +95,7 @@ export interface Database {
           workspace_id: string;
           title_en: string;
           title_ar: string | null;
-          type: "task" | "project" | "milestone" | "action" | "initiative" | "ticket" | "request" | "purchase_request" | "purchase_order" | "stock_movement" | "maintenance" | "quotation" | "sales_order";
+          type: "task" | "project" | "milestone" | "action" | "initiative" | "ticket" | "request" | "purchase_request" | "purchase_order" | "production_order" | "stock_movement" | "maintenance" | "quotation" | "sales_order";
           status: "backlog" | "planned" | "todo" | "in_progress" | "review" | "done" | "blocked" | "cancelled" | "draft" | "submitted" | "approved" | "rejected" | "ordered" | "sent" | "partially_received" | "received" | "expired" | "converted";
           priority: "critical" | "urgent" | "high" | "medium" | "low";
           assignee_id: string | null;
@@ -96,6 +103,8 @@ export interface Database {
           organization_id: string | null;
           due_date: string | null;
           progress: number;
+          total_amount?: number;
+          title?: string;
           tags: string[];
           metadata: Json;
           created_at: string;

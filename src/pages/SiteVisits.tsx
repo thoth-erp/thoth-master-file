@@ -355,7 +355,7 @@ function MeasurementModal({ onClose, onSaved, visitId, editMeasurement, ar, work
             <div><label className={labelCls}>{ar ? "الغرفة / المنطقة" : "Room / Area"}</label>
               <input className={inputCls} value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder={ar ? "مثال: المطبخ" : "e.g. Kitchen"} /></div>
             <div><label className={labelCls}>{ar ? "النوع" : "Room Type"}</label>
-              <select className={inputCls} value={roomType} onChange={(e) => setRoomType(e.target.value)}>
+              <select className={inputCls} value={roomType} onChange={(e) => setRoomType(e.target.value as never)}>
                 {ROOM_TYPES.map((r) => <option key={r.value} value={r.value}>{ar ? r.ar : r.en}</option>)}
               </select></div>
           </div>

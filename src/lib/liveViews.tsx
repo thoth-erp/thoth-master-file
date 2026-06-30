@@ -1073,7 +1073,7 @@ export function WorkLive({ workspaceId, lang }: { workspaceId: string; lang: "en
     // Optimistic update
     setWorkItems((prev) => prev.map((w) => w.id === id ? { ...w, status: newStatus as LiveWorkItem["status"] } : w));
     // Persist
-    await getDataSource().work_items.update(workspaceId, id, { status: newStatus });
+    await getDataSource().work_items.update(workspaceId, id, { status: newStatus as never });
   }
 
   const filtered = useMemo(() => {
