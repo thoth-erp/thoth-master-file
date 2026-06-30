@@ -1090,7 +1090,7 @@ export function buildOrgGraph(): { nodes: OrgGraphNode[]; edges: OrgGraphEdge[] 
     const r = 140;
     nodes.push({
       id: `person:${person.id}`,
-      label: person.nameEn.split(" ")[0],
+      label: person.name.split(" ")[0],
       labelAr: person.nameAr.split(" ")[0],
       type: "person",
       color: "#a855f7",

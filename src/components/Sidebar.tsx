@@ -119,36 +119,6 @@ const CORE_NAV = [
   { id: "mobile-apps",   icon: Smartphone,      labelEn: "Mobile Apps",  labelAr: "تطبيقات محمولة",  path: "/mobile-apps" },
 ] as const;
 
-// Map nav item IDs to the module keys chosen at onboarding.
-// Items NOT in this map are always visible (foundational: today, activity,
-// customers, contacts, branches, team, users). Everything mapped here only
-// shows when its module was selected — so the sidebar reflects the user's setup.
-const NAV_MODULE_MAP: Record<string, string> = {
-  // Sell
-  sales: "sales", quotations: "sales", orders: "sales", crm: "sales",
-  "crm-customers": "sales", "crm-pipeline": "sales", pos: "pos",
-  // Make
-  production: "production", "prod-exec": "production", work: "production",
-  operations: "production", quality: "quality",
-  // Design
-  designs: "design", studio: "design",
-  // Stock
-  products: "inventory", inventory: "inventory", purchasing: "purchasing",
-  // Deliver
-  delivery: "delivery", "site-visits": "delivery",
-  // Money
-  finance: "finance", "fin-dashboard": "finance", "fin-invoices": "finance",
-  "fin-expenses": "finance", "fin-reports": "finance", "fin-bank": "finance",
-  "fin-arap": "finance",
-  // People
-  hr: "hr", "hr-dashboard": "hr", "hr-employees": "hr", "hr-recruitment": "hr",
-  "hr-compensation": "hr", "hr-training": "hr", "hr-performance": "hr",
-  "hr-relations": "hr", "hr-compliance": "hr", "hr-analytics": "hr",
-  "hr-payroll": "hr", "hr-org": "hr",
-  // Grow
-  analytics: "analytics", reports: "analytics",
-};
-
 const LOYALTY_NAV = [
   { id: "loyalty",         icon: Gift,         labelEn: "Loyalty",       labelAr: "الولاء",           path: "/loyalty" },
   { id: "loyalty-lookup",  icon: Users,        labelEn: "Staff Lookup",  labelAr: "بحث العملاء",     path: "/loyalty/lookup" },

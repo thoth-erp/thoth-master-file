@@ -561,7 +561,7 @@ export default function FinanceARAP() {
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className="text-[11px] text-muted-foreground capitalize">{ar ? row.category_ar : row.category}</span>
+                          <span className="text-[11px] text-muted-foreground capitalize">{row.category}</span>
                         </td>
                         <td className="px-4 py-3.5">
                           <p className="text-[12px] text-foreground max-w-[200px] truncate">

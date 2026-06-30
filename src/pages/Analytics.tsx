@@ -525,7 +525,7 @@ export default function Analytics() {
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <MetricCard value={prodOrders.length} label={ar ? "أوامر التشغيل" : "Production Orders"} icon={Factory} color="text-orange-600" />
-                    <MetricCard value={prodOrders.filter(p => p.status === "in_progress").length} label={ar ? "قيد التنفيذ" : "In Progress"} icon={Activity} color="text-violet-600" />
+                    <MetricCard value={prodOrders.filter(p => ["cutting","edgebanding","drilling","assembly","finishing","quality_check","packing"].includes(p.status)).length} label={ar ? "قيد التنفيذ" : "In Progress"} icon={Activity} color="text-violet-600" />
                     <MetricCard value={prodOrders.filter(p => ["completed", "done"].includes(p.status)).length} label={ar ? "مكتمل" : "Completed"} icon={CheckCircle2} color="text-emerald-600" />
                     <MetricCard value={readyForProd.length} label={ar ? "بانتظار التشغيل" : "Awaiting Production"} icon={Clock} color="text-amber-600" />
                   </div>
@@ -551,7 +551,7 @@ export default function Analytics() {
                           color="hsl(142, 71%, 45%)"
                         />
                         <ProgressRing
-                          value={prodOrders.filter(p => p.status === "in_progress").length}
+                          value={prodOrders.filter(p => ["cutting","edgebanding","drilling","assembly","finishing","quality_check","packing"].includes(p.status)).length}
                           max={prodOrders.length}
                           label={ar ? "قيد التنفيذ" : "In Progress"}
                           color="hsl(250, 60%, 55%)"

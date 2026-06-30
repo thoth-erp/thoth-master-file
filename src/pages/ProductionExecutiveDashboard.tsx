@@ -586,7 +586,7 @@ export default function ProductionExecutiveDashboard() {
         </div>
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          {t/ar, "Live", "مباشر"} — {new Date().toLocaleTimeString(ar ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+          {ar ? "مباشر" : "Live"} — {new Date().toLocaleTimeString(ar ? "ar-EG" : "en-US", { hour: "2-digit", minute: "2-digit" })}
         </div>
       </div>
 

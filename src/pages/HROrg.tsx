@@ -189,7 +189,7 @@ export default function HROrg() {
           {/* GM Level */}
           <div className="flex justify-center">
             {orgChart.gm && (
-              <div onClick={() => navigate(`/hr/employees/${orgChart.gm.id}`)}
+              <div onClick={() => navigate(`/hr/employees/${orgChart.gm?.id}`)}
                 className="p-4 rounded-xl border-2 border-primary bg-primary/5 cursor-pointer hover:shadow-md transition-all text-center w-[220px]">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[16px] font-bold text-white mx-auto mb-2" style={{ backgroundColor: orgChart.gm.avatar_color }}>
                   {orgChart.gm.full_name.split(" ").map(w => w[0]).join("")}

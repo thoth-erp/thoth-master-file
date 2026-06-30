@@ -292,9 +292,9 @@ export function detectOpportunityClusters(): OpportunityCluster[] {
         id: `cluster-person-${p.id}`,
         titleEn: "Untapped Contact Network",
         titleAr: "شبكة اتصالات غير مستغلة",
-        descEn: `${p.nameEn} is active with ${orgConnections.length} org connection(s) but has no open deal. Strong outreach candidate.`,
-        descAr: `${p.nameEn} نشط مع ${orgConnections.length} اتصال بمنظمة لكن لا توجد صفقة مفتوحة. مرشح قوي للتواصل.`,
-        items: [{ type: "Person", nameEn: p.nameEn, nameAr: p.nameAr }],
+        descEn: `${p.name} is active with ${orgConnections.length} org connection(s) but has no open deal. Strong outreach candidate.`,
+        descAr: `${p.nameAr} نشط مع ${orgConnections.length} اتصال بمنظمة لكن لا توجد صفقة مفتوحة. مرشح قوي للتواصل.`,
+        items: [{ type: "Person", nameEn: p.name, nameAr: p.nameAr }],
         actionEn: "Open Opportunity",
         actionAr: "فتح فرصة",
         scoreLabel: "Pipeline",
@@ -869,7 +869,7 @@ export function analyzeRelationships(): RelationshipSummary {
   function getName(type: string, id: string): { en: string; ar: string } {
     if (type === "person") {
       const p = allPeople.find((x) => x.id === id);
-      return p ? { en: p.nameEn, ar: p.nameAr } : { en: id, ar: id };
+      return p ? { en: p.name, ar: p.nameAr } : { en: id, ar: id };
     }
     if (type === "organization") {
       const o = allOrgs.find((x) => x.id === id);
