@@ -11,7 +11,7 @@ import {
   Copy, ImagePlus, RefreshCw, LayoutTemplate,
 } from "lucide-react";
 import StudioEditor from "../components/StudioEditor";
-import { useToast } from "../hooks/use-toast";
+import { toast } from "sonner";
 import {
   STUDIO_PAGES, STUDIO_BLOCKS, STUDIO_COMMENTS, STUDIO_VERSIONS, STUDIO_MEDIA,
   type StudioPage as StudioPageType, type StudioBlock, type StudioComment,
@@ -407,7 +407,6 @@ export default function StudioPage() {
   const [, setLocation] = useLocation();
   const params = useParams<{ id: string }>();
   const pageId = params?.id || "p02";
-  const { toast } = useToast();
 
   const page = useMemo(() => STUDIO_PAGES.find((p) => p.id === pageId) || STUDIO_PAGES[0], [pageId]);
   const pageBlocks = useMemo(() => STUDIO_BLOCKS.filter((b) => b.page_id === page.id).sort((a, b) => a.order - b.order), [page.id]);
@@ -442,11 +441,10 @@ export default function StudioPage() {
       checklist: { en: "Checklist generated from page", ar: "تم إنشاء قائمة التحقق من الصفحة" },
     };
     const label = labels[action] || { en: "Action completed", ar: "تمت العملية" };
-    toast({
-      title: "✨ " + t("AI Action", "إجراء AI"),
+    toast("✨ " + t("AI Action", "إجراء AI"), {
       description: t(label.en, label.ar),
     });
-  }, [toast, t]);
+  }, [t]);
 
   return (
     <div className="min-h-full bg-background">
@@ -470,7 +468,7 @@ export default function StudioPage() {
             )}
             {/* Share button */}
             <button
-              onClick={() => toast({ title: t("Share link copied", "تم نسخ رابط المشاركة"), description: t("Link copied to clipboard", "تم نسخ الرابط") })}
+              onClick={() => toast(t("Share link copied", "تم نسخ رابط المشاركة"), { description: t("Link copied to clipboard", "تم نسخ الرابط") })}
               className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors"
             >
               <Share2 size={13} />

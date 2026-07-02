@@ -60,3 +60,22 @@ test("create a quotation and see it in the list", async ({ page }) => {
   // The new quotation appears in the list (demo mode keeps optimistic state).
   await expect(page.getByText(project).first()).toBeVisible({ timeout: 10_000 });
 });
+
+test("H1: an uncaught data failure surfaces as a toast, not silence", async ({ page }) => {
+  await page.goto("/quotations");
+  await expect(page.getByRole("button", { name: /New Quotation/i }).first()).toBeVisible({ timeout: 15_000 });
+
+  // Simulate what a failed Supabase write now does: the adapter throws a
+  // DataError that nothing catches. The global unhandledrejection surface
+  // must turn it into a visible toast (isDataError duck-types on name).
+  await page.evaluate(() => {
+    const err = Object.assign(new Error('create on "work_items" failed: network down'), {
+      name: "DataError",
+      op: "create",
+      table: "work_items",
+    });
+    Promise.reject(err);
+  });
+
+  await expect(page.getByText(/Couldn't save/i).first()).toBeVisible({ timeout: 5_000 });
+});

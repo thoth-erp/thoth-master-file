@@ -12,6 +12,7 @@ import { isDemoMode } from "../lib/supabase";
 import { getDataSource } from "../lib/data-source";
 import { generateCode } from "../lib/code-generator";
 import { exportCSV } from "../lib/csv-export";
+import { calcBreakdown } from "../lib/money";
 import type { Database } from "../lib/database.types";
 import ConnectedSearch, { type SearchResult } from "../components/ConnectedSearch";
 import {
@@ -55,6 +56,21 @@ function getM(w: WorkItem): SOMeta { return (w.metadata ?? {}) as SOMeta; }
 
 function calcTotal(items: SOItem[]): number { return items.reduce((s, i) => s + i.qty * i.unitPrice, 0); }
 function calcPaid(payments: SOPayment[]): number { return payments.reduce((s, p) => s + p.amount, 0); }
+
+/**
+ * Grand total for an order: the wizard-saved total_amount when present,
+ * otherwise recomputed with order discount + tax (money.ts). The old code
+ * used raw qty×price here, so lists/exports disagreed with the wizard.
+ */
+function soGrand(m: SOMeta): number {
+  if (typeof m.total_amount === "number") return m.total_amount;
+  return calcBreakdown({
+    items: m.items || [],
+    order_discount: m.order_discount,
+    order_discount_type: m.order_discount_type,
+    tax_rate: m.tax_rate,
+  }).grand;
+}
 
 function genSONumber(): string {
   const d = new Date();
@@ -758,7 +774,7 @@ export default function SalesOrders() {
   const inProd = orders.filter(o => o.status === "in_progress").length;
   const ready = orders.filter(o => o.status === "review").length;
   const overdue = orders.filter(o => o.due_date && !["done", "cancelled", "sent"].includes(o.status) && new Date(o.due_date) < new Date(new Date().toDateString())).length;
-  const totalValue = orders.reduce((s, o) => s + calcTotal(getM(o).items || []), 0);
+  const totalValue = orders.reduce((s, o) => s + soGrand(getM(o)), 0);
 
   async function updateStatus(id: string, newStatus: string) {
     await getDataSource().work_items.update(workspace?.id ?? "", id, { status: newStatus as never });
@@ -801,7 +817,7 @@ export default function SalesOrders() {
             <div className="flex items-center gap-2 shrink-0">
               {orders.length > 0 && (
                 <button onClick={() => {
-                  const rows = orders.map(o => { const m = getM(o); return { so_number: m.so_number, customer: m.customer_name, project: m.project_name, priority: m.priority, items: (m.items||[]).length, total: calcTotal(m.items||[]), paid: calcPaid(m.payments||[]), status: o.status }; });
+                  const rows = orders.map(o => { const m = getM(o); return { so_number: m.so_number, customer: m.customer_name, project: m.project_name, priority: m.priority, items: (m.items||[]).length, total: soGrand(m), paid: calcPaid(m.payments||[]), status: o.status }; });
                   exportCSV(rows, `thoth-sales-orders-${new Date().toISOString().slice(0,10)}.csv`);
                 }} className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-border/60 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
                   <Download size={13} /> {ar ? "صدّر" : "Export"}
@@ -869,7 +885,7 @@ export default function SalesOrders() {
               const m = getM(o);
               const st = SO_STATUSES.find(s => s.value === o.status) ?? SO_STATUSES[0];
               const pri = PRIORITIES.find(p => p.value === m.priority);
-              const itemsTotal = calcTotal(m.items || []);
+              const itemsTotal = soGrand(m);
               const paidTotal = calcPaid(m.payments || []);
               const remaining = itemsTotal - paidTotal;
               const isOd = o.due_date && !["done", "cancelled", "sent"].includes(o.status) && new Date(o.due_date) < new Date(new Date().toDateString());

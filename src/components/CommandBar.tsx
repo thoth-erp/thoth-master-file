@@ -10,7 +10,7 @@ import {
 import { useLanguage } from "../context/LanguageContext";
 import { useCommandBar } from "../context/CommandBarContext";
 import { buildSearchIndex, searchIndex, groupByType, SearchResult, SearchResultType } from "../search/searchIndex";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // ─── Recent history helpers ────────────────────────────────
 
@@ -171,7 +171,6 @@ export function CommandBar() {
   const { open, closeBar } = useCommandBar();
   const { lang } = useLanguage();
   const [, navigate] = useLocation();
-  const { toast } = useToast();
   const ar = lang === "ar";
 
   const [query, setQuery] = useState("");
@@ -235,7 +234,7 @@ export function CommandBar() {
       const cmd = fi.item;
       closeBar();
       if (cmd.toastEn) {
-        toast({ title: ar ? cmd.toastAr : cmd.toastEn });
+        toast(ar ? cmd.toastAr : cmd.toastEn);
       } else if (cmd.route) {
         navigate(cmd.route);
       }

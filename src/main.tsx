@@ -1,8 +1,11 @@
 import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { reportError } from "./lib/sentry";
+import { installGlobalErrorSurface } from "./lib/errors";
 import App from "./App";
 import "./index.css";
+
+installGlobalErrorSurface();
 
 /**
  * Root error boundary — a crash anywhere in the tree used to render a

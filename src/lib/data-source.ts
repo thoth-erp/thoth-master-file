@@ -11,6 +11,8 @@
  */
 
 import { supabase, isDemoMode } from "./supabase";
+import { DataError, type DataOp } from "./errors";
+import { reportError } from "./sentry";
 import { loadDeals } from "../data/sales";
 import { loadWorkItems } from "../data/work";
 import { loadInvoices, loadPayments, loadExpenses } from "../data/finance";
@@ -268,9 +270,18 @@ export interface EntityAdapter<T> {
 function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
   table: keyof Tables
 ): EntityAdapter<T> {
+  // H1 "loud errors": report to Sentry with context, then THROW.
+  // The old behavior (console.error + return []/null) rendered failures
+  // as empty lists and silently-dropped saves.
+  function fail(op: DataOp, detail: string, workspaceId: string, cause?: unknown): never {
+    const err = new DataError(op, table as string, detail, { workspaceId, cause });
+    reportError(err, { table, op, workspaceId, cause });
+    throw err;
+  }
+
   return {
     async list(workspaceId, filters) {
-      if (!supabase) return [];
+      if (!supabase) fail("list", "no database connection (live mode without Supabase client)", workspaceId);
       let query = supabase.from(table as string).select("*").eq("workspace_id", workspaceId);
       if (filters) {
         for (const [k, v] of Object.entries(filters)) {
@@ -278,35 +289,36 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
         }
       }
       const { data, error } = await query.order("created_at", { ascending: false });
-      if (error) { console.error(`[DS] ${table} list error`, error); return []; }
+      if (error) fail("list", error.message, workspaceId, error);
       return (data ?? []) as T[];
     },
 
     async get(workspaceId, id) {
-      if (!supabase) return null;
+      if (!supabase) fail("get", "no database connection (live mode without Supabase client)", workspaceId);
       const { data, error } = await supabase
         .from(table as string)
         .select("*")
         .eq("workspace_id", workspaceId)
         .eq("id", id)
-        .single();
-      if (error) { console.error(`[DS] ${table} get error`, error); return null; }
-      return data as T;
+        .maybeSingle();
+      // Not-found is a legitimate result (pages branch on null), not a failure.
+      if (error) fail("get", error.message, workspaceId, error);
+      return (data ?? null) as T | null;
     },
 
     async create(workspaceId, payload) {
-      if (!supabase) return null;
+      if (!supabase) fail("create", "no database connection (live mode without Supabase client)", workspaceId);
       const { data, error } = await supabase
         .from(table as string)
         .insert({ ...payload, workspace_id: workspaceId } as never)
         .select()
         .single();
-      if (error) { console.error(`[DS] ${table} create error`, error); return null; }
+      if (error) fail("create", error.message, workspaceId, error);
       return data as T;
     },
 
     async update(workspaceId, id, payload) {
-      if (!supabase) return null;
+      if (!supabase) fail("update", "no database connection (live mode without Supabase client)", workspaceId);
       const { data, error } = await supabase
         .from(table as string)
         .update({ ...payload, updated_at: new Date().toISOString() } as never)
@@ -314,18 +326,20 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
         .eq("id", id)
         .select()
         .single();
-      if (error) { console.error(`[DS] ${table} update error`, error); return null; }
+      // .single() errors when 0 rows matched — that means the write DIDN'T
+      // happen (bad id or RLS), which callers must hear about loudly.
+      if (error) fail("update", error.message, workspaceId, error);
       return data as T;
     },
 
     async remove(workspaceId, id) {
-      if (!supabase) return false;
+      if (!supabase) fail("remove", "no database connection (live mode without Supabase client)", workspaceId);
       const { error } = await supabase
         .from(table as string)
         .delete()
         .eq("workspace_id", workspaceId)
         .eq("id", id);
-      if (error) { console.error(`[DS] ${table} delete error`, error); return false; }
+      if (error) fail("remove", error.message, workspaceId, error);
       return true;
     },
   };
