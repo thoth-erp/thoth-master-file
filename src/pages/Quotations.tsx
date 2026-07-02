@@ -14,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
 import { exportCSV } from "../lib/csv-export";
 import { generateCode, peekNextCode } from "../lib/code-generator";
+import { lineNet, calcBreakdown, calcGrand } from "../lib/money";
 import type { Database } from "../lib/database.types";
 import type { ProductMeta } from "../lib/furniture-engine";
 import {
@@ -75,34 +76,7 @@ function getQM(w: WorkItem): QuotMeta {
   return (w.metadata ?? {}) as QuotMeta;
 }
 
-/** Net amount for a single line after its own discount. */
-function lineNet(i: QuotItem): number {
-  const gross = i.qty * i.unitPrice;
-  if (!i.discount) return gross;
-  return i.discountType === "fixed"
-    ? Math.max(0, gross - i.discount)
-    : gross * (1 - Math.min(i.discount, 100) / 100);
-}
-
-/** Subtotal after line discounts (kept as calcTotal for existing call sites). */
-function calcTotal(items: QuotItem[]): number {
-  return items.reduce((s, i) => s + lineNet(i), 0);
-}
-
-/** Full breakdown: subtotal → order discount → tax → grand total. */
-function calcBreakdown(m: QuotMeta): { subtotal: number; orderDisc: number; taxable: number; tax: number; grand: number } {
-  const subtotal = calcTotal(m.items || []);
-  const od = m.order_discount || 0;
-  const orderDisc = od <= 0 ? 0 : (m.order_discount_type === "fixed" ? Math.min(od, subtotal) : subtotal * (Math.min(od, 100) / 100));
-  const taxable = subtotal - orderDisc;
-  const tax = taxable * ((m.tax_rate || 0) / 100);
-  return { subtotal, orderDisc, taxable, tax, grand: taxable + tax };
-}
-
-/** Grand total for a quotation (used by list + exports). */
-function calcGrand(m: QuotMeta): number {
-  return calcBreakdown(m).grand;
-}
+// Money math lives in lib/money.ts (unit-tested, shared with exports).
 
 function calcCosts(m: QuotMeta): number {
   return (m.material_cost || 0) + (m.labor_cost || 0) + (m.accessories_cost || 0) + (m.transport_cost || 0) + (m.installation_cost || 0);

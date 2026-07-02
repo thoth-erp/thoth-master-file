@@ -6,3 +6,5 @@ dist
 .tsbuildinfo
 .DS_Store
 .vscode
+test-results
+playwright-report

@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
+import { reportError } from "./lib/sentry";
 import App from "./App";
 import "./index.css";
 
@@ -18,6 +19,7 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 
   componentDidCatch(error: Error, info: { componentStack?: string | null }) {
     console.error("[THOTH] Uncaught render error:", error, info.componentStack);
+    reportError(error, { componentStack: info.componentStack });
   }
 
   render() {
