@@ -15,6 +15,8 @@ import { getDataSource } from "../lib/data-source";
 import { exportCSV } from "../lib/csv-export";
 import { generateCode, peekNextCode } from "../lib/code-generator";
 import { lineNet, calcBreakdown, calcGrand } from "../lib/money";
+import { quotationMetaSchema, describeIssues } from "../lib/schemas/money-schemas";
+import { isValidationError } from "../lib/errors";
 import type { Database } from "../lib/database.types";
 import type { ProductMeta } from "../lib/furniture-engine";
 import {
@@ -495,10 +497,41 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
     e.preventDefault();
     if (!workspace || !form.quotNumber.trim()) return;
     setLoading(true); setError(null);
+
+    // Mint the code (advancing the counter) only when the auto default is kept.
+    const auto = peekNextCode("quotation");
+    const quotNumber = form.quotNumber.trim() === auto ? generateCode("quotation") : form.quotNumber.trim();
+    const meta = {
+      quotation_number: quotNumber,
+      customer_id: form.customer || null,
+      customer_name: customer?.name_en || null,
+      contact_person: form.contactPerson.trim() || null,
+      quotation_date: form.quotDate,
+      validity_date: form.validityDate,
+      project_name: form.projectName.trim() || null,
+      notes: form.notes.trim() || null,
+      items: items.filter((i) => i.product.trim()),
+      material_cost: parseFloat(form.materialCost) || 0,
+      labor_cost: parseFloat(form.laborCost) || 0,
+      accessories_cost: parseFloat(form.accessoriesCost) || 0,
+      transport_cost: parseFloat(form.transportCost) || 0,
+      installation_cost: parseFloat(form.installationCost) || 0,
+      order_discount: parseFloat(form.orderDiscount) || 0,
+      order_discount_type: form.orderDiscountType,
+      tax_rate: parseFloat(form.taxRate) || 0,
+      currency,
+    };
+
+    // H3: validate before writing — same schema the adapter enforces,
+    // surfaced as an inline form message instead of a rejected save.
+    const parsed = quotationMetaSchema.safeParse(meta);
+    if (!parsed.success) {
+      setError(describeIssues(parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })), ar));
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Mint the code (advancing the counter) only when the auto default is kept.
-      const auto = peekNextCode("quotation");
-      const quotNumber = form.quotNumber.trim() === auto ? generateCode("quotation") : form.quotNumber.trim();
       const created = await getDataSource().work_items.create(workspace.id, {
         title_en: form.projectName.trim() || quotNumber,
         title_ar: form.projectName.trim() || quotNumber,
@@ -508,30 +541,13 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
         due_date: form.validityDate || null,
         organization_id: form.customer || null,
         progress: 0, tags: ["quotation"],
-        metadata: {
-          quotation_number: quotNumber,
-          customer_id: form.customer || null,
-          customer_name: customer?.name_en || null,
-          contact_person: form.contactPerson.trim() || null,
-          quotation_date: form.quotDate,
-          validity_date: form.validityDate,
-          project_name: form.projectName.trim() || null,
-          notes: form.notes.trim() || null,
-          items: items.filter((i) => i.product.trim()),
-          material_cost: parseFloat(form.materialCost) || 0,
-          labor_cost: parseFloat(form.laborCost) || 0,
-          accessories_cost: parseFloat(form.accessoriesCost) || 0,
-          transport_cost: parseFloat(form.transportCost) || 0,
-          installation_cost: parseFloat(form.installationCost) || 0,
-          order_discount: parseFloat(form.orderDiscount) || 0,
-          order_discount_type: form.orderDiscountType,
-          tax_rate: parseFloat(form.taxRate) || 0,
-          currency,
-        } as never,
+        metadata: meta as never,
       });
       if (created) onAdd(created as WorkItem);
       onClose();
-    } catch { setError(ar ? "فشل الحفظ" : "Failed to save."); }
+    } catch (err) {
+      setError(isValidationError(err) ? describeIssues(err.issues, ar) : (ar ? "فشل الحفظ" : "Failed to save."));
+    }
     finally { setLoading(false); }
   }
 
@@ -655,7 +671,7 @@ function CreateQuotationModal({ onClose, onAdd, ar, customers, currency, product
             <div>
               <label className={labelCls}>{ar ? "خصم على العرض" : "Order Discount"}</label>
               <div className="flex gap-1.5">
-                <input type="number" min={0} value={form.orderDiscount} onChange={(e) => setForm((f) => ({ ...f, orderDiscount: e.target.value }))} placeholder="0" className={inputCls + " h-9"} />
+                <input type="number" min={0} value={form.orderDiscount} onChange={(e) => setForm((f) => ({ ...f, orderDiscount: e.target.value }))} placeholder="0" data-testid="order-discount" className={inputCls + " h-9"} />
                 <div className="flex rounded-xl border border-border/60 overflow-hidden shrink-0">
                   {(["pct", "fixed"] as const).map((t) => (
                     <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, orderDiscountType: t }))}

@@ -108,3 +108,27 @@ test("H2: Inventory backed by 100k stock movements stays fast and paged", async 
   await page.getByRole("button", { name: /Next page/i }).click();
   await expect(page.getByText(/51–100 of 100,0/)).toBeVisible({ timeout: 5_000 });
 });
+
+test("H3: money validation blocks an impossible discount", async ({ page }) => {
+  await page.goto("/quotations");
+  await page.getByRole("button", { name: /New Quotation/i }).first().click();
+
+  const modal = page.locator("div.fixed", { hasText: "New Quotation" });
+  await expect(modal).toBeVisible();
+
+  const project = `Invalid Discount ${Date.now()}`;
+  await modal.getByPlaceholder(/Executive Office Fit-out/i).fill(project);
+  await modal.getByPlaceholder(/Product name/i).first().fill("Overdiscounted Desk");
+  await modal.locator('input[type="number"][min="0"]').first().fill("1000");
+
+  // 150% discount passes the input's native min=0 — only the zod layer
+  // (form + adapter backstop) can reject it.
+  await modal.getByTestId("order-discount").fill("150");
+  await modal.getByRole("button", { name: /Create Quotation/i }).click();
+
+  // Inline error, modal stays open, nothing saved.
+  await expect(modal.getByText(/cannot exceed 100/i)).toBeVisible({ timeout: 5_000 });
+  await expect(modal).toBeVisible();
+  await modal.getByRole("button", { name: /Cancel/i }).click();
+  await expect(page.getByText(project)).toHaveCount(0);
+});

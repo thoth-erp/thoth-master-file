@@ -33,7 +33,27 @@ export class DataError extends Error {
 /** Duck-typed on purpose: survives bundling/chunk duplication of the class. */
 export function isDataError(e: unknown): e is DataError {
   return e instanceof DataError
-    || (typeof e === "object" && e !== null && (e as Error).name === "DataError");
+    || (typeof e === "object" && e !== null && ["DataError", "ValidationError"].includes((e as Error).name));
+}
+
+/**
+ * A write rejected by the money schemas (H3) before touching the store.
+ * Forms catch this to render inline field errors; anything uncaught still
+ * surfaces through the same global toast path as DataError.
+ */
+export class ValidationError extends DataError {
+  readonly issues: Array<{ path: string; message: string }>;
+
+  constructor(op: DataOp, table: string, issues: Array<{ path: string; message: string }>, workspaceId?: string) {
+    super(op, table, `validation failed: ${issues.map((i) => `${i.path || "value"} ${i.message}`).join("; ")}`, { workspaceId });
+    this.name = "ValidationError";
+    this.issues = issues;
+  }
+}
+
+export function isValidationError(e: unknown): e is ValidationError {
+  return e instanceof ValidationError
+    || (typeof e === "object" && e !== null && (e as Error).name === "ValidationError");
 }
 
 const OP_LABEL: Record<DataOp, { en: string; ar: string }> = {
@@ -51,6 +71,14 @@ function isArabic(): boolean {
 /** User-facing toast for a data failure. Safe to call from anywhere. */
 export function toastDataError(e: DataError) {
   const ar = isArabic();
+  if (isValidationError(e)) {
+    const first = e.issues[0];
+    toast.error(ar ? "راجع البيانات المدخلة" : "Check the form", {
+      description: first ? `${first.path ? first.path + ": " : ""}${first.message}` : undefined,
+      duration: 6000,
+    });
+    return;
+  }
   const label = OP_LABEL[e.op] ?? OP_LABEL.update;
   toast.error(ar ? label.ar : label.en, {
     description: ar

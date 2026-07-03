@@ -19,6 +19,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePagedList, pagedKey } from "../hooks/usePagedList";
 import { PagerBar } from "../components/PagerBar";
 import { exportCSV } from "../lib/csv-export";
+import { describeIssues } from "../lib/schemas/money-schemas";
+import { isValidationError } from "../lib/errors";
 import { uploadFile, BUCKETS } from "../lib/storage";
 import { isDemoMode } from "../lib/supabase";
 import type { Database } from "../lib/database.types";
@@ -423,7 +425,7 @@ function ItemModal({ onClose, onSaved, ar, currency, mode, initial }: {
         if (created) onSaved(created as Resource);
       }
       onClose();
-    } catch { setError(ar ? "فشل الحفظ" : "Failed to save."); }
+    } catch (err) { setError(isValidationError(err) ? describeIssues(err.issues, ar) : (ar ? "فشل الحفظ" : "Failed to save.")); }
     finally { setLoading(false); }
   }
 
@@ -620,7 +622,7 @@ function AddMovementModal({ onClose, onAdd, onResourceUpdate, ar, resources }: {
         onResourceUpdate({ ...res, metadata: newMeta } as Resource);
       }
       onClose();
-    } catch { setError(ar ? "فشل الحفظ" : "Failed to save."); }
+    } catch (err) { setError(isValidationError(err) ? describeIssues(err.issues, ar) : (ar ? "فشل الحفظ" : "Failed to save.")); }
     finally { setLoading(false); }
   }
 
@@ -706,7 +708,7 @@ function AddMaintenanceModal({ onClose, onAdd, ar, resources, currency }: { onCl
       });
       if (created) onAdd(created as WorkItem);
       onClose();
-    } catch { setError(ar ? "فشل الحفظ" : "Failed to save."); }
+    } catch (err) { setError(isValidationError(err) ? describeIssues(err.issues, ar) : (ar ? "فشل الحفظ" : "Failed to save.")); }
     finally { setLoading(false); }
   }
 

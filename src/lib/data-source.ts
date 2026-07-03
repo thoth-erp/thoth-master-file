@@ -11,8 +11,16 @@
  */
 
 import { supabase, isDemoMode } from "./supabase";
-import { DataError, type DataOp } from "./errors";
+import { DataError, ValidationError, type DataOp } from "./errors";
 import { reportError } from "./sentry";
+import { validateMoneyWrite } from "./schemas/money-schemas";
+
+/** H3 backstop: money writes are schema-checked in BOTH modes before they
+ *  touch the store. User input problems, not system failures — no Sentry. */
+function guardWrite(op: DataOp, table: string, payload: Record<string, unknown>, workspaceId: string): void {
+  const issues = validateMoneyWrite(table, payload);
+  if (issues) throw new ValidationError(op, table, issues, workspaceId);
+}
 import { loadDeals } from "../data/sales";
 import { loadWorkItems } from "../data/work";
 import { loadInvoices, loadPayments, loadExpenses } from "../data/finance";
@@ -364,6 +372,7 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
 
     async create(workspaceId, payload) {
       if (!supabase) fail("create", "no database connection (live mode without Supabase client)", workspaceId);
+      guardWrite("create", table as string, payload as Record<string, unknown>, workspaceId);
       const { data, error } = await supabase
         .from(table as string)
         .insert({ ...payload, workspace_id: workspaceId } as never)
@@ -375,6 +384,7 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
 
     async update(workspaceId, id, payload) {
       if (!supabase) fail("update", "no database connection (live mode without Supabase client)", workspaceId);
+      guardWrite("update", table as string, payload as Record<string, unknown>, workspaceId);
       const { data, error } = await supabase
         .from(table as string)
         .update({ ...payload, updated_at: new Date().toISOString() } as never)
@@ -413,7 +423,7 @@ function demoCol(row: Record<string, unknown>, col: string): unknown {
   return row[col];
 }
 
-function makeDemoAdapter<T>(loader: () => T[]): EntityAdapter<T> {
+function makeDemoAdapter<T>(loader: () => T[], table = "demo"): EntityAdapter<T> {
   return {
     async list() { return loader(); },
 
@@ -458,11 +468,13 @@ function makeDemoAdapter<T>(loader: () => T[]): EntityAdapter<T> {
       };
     },
     async get(_ws, id) { return loader().find((r: unknown) => (r as { id: string }).id === id) ?? null; },
-    async create(_ws, data) {
+    async create(ws, data) {
+      guardWrite("create", table, data as Record<string, unknown>, ws);
       console.warn("[DS] Demo mode — create is ephemeral");
       return { ...data, id: `demo-${Date.now()}` } as T;
     },
-    async update(_ws, _id, data) {
+    async update(ws, _id, data) {
+      guardWrite("update", table, data as Record<string, unknown>, ws);
       console.warn("[DS] Demo mode — update is ephemeral");
       return data as T;
     },
@@ -570,7 +582,7 @@ const demoDataSource: DataSource = {
   people:          makeDemoAdapter(convertPeople),
   organizations:   makeDemoAdapter(() => [...convertOrganizations(), ...DEMO_VENDORS]),
   resources:       makeDemoAdapter(() => [...convertResources(), ...DEMO_INVENTORY, ...DEMO_PRODUCTS]),
-  work_items:      makeDemoAdapter(() => [...convertWorkItems(), ...DEMO_SALES_ORDERS, ...DEMO_QUOTATIONS, ...DEMO_PURCHASE_ITEMS, ...DEMO_STOCK_MOVEMENTS, ...DEMO_MAINTENANCE, ...loadTestRows()]),
+  work_items:      makeDemoAdapter(() => [...convertWorkItems(), ...DEMO_SALES_ORDERS, ...DEMO_QUOTATIONS, ...DEMO_PURCHASE_ITEMS, ...DEMO_STOCK_MOVEMENTS, ...DEMO_MAINTENANCE, ...loadTestRows()], "work_items"),
   activity_events: makeDemoAdapter(() => DEMO_ACTIVITY_EVENTS),
   site_visits: makeDemoAdapter(() => DEMO_SITE_VISITS),
   measurements: makeDemoAdapter(() => DEMO_MEASUREMENTS),
@@ -588,12 +600,12 @@ const demoDataSource: DataSource = {
   employees: makeDemoAdapter(() => DEMO_EMPLOYEES),
   attendance: makeDemoAdapter(() => DEMO_ATTENDANCE),
   leave_requests: makeDemoAdapter(() => DEMO_LEAVE_REQUESTS),
-  cost_entries: makeDemoAdapter(() => DEMO_COST_ENTRIES),
+  cost_entries: makeDemoAdapter(() => DEMO_COST_ENTRIES, "cost_entries"),
   branches: makeDemoAdapter(() => DEMO_BRANCHES),
   material_requirements: makeDemoAdapter(() => DEMO_MATERIAL_REQUIREMENTS),
   pos_registers: makeDemoAdapter(() => DEMO_POS_REGISTERS),
-  pos_transactions: makeDemoAdapter(() => DEMO_POS_TRANSACTIONS),
-  pos_transaction_items: makeDemoAdapter(() => DEMO_POS_TXN_ITEMS),
+  pos_transactions: makeDemoAdapter(() => DEMO_POS_TRANSACTIONS, "pos_transactions"),
+  pos_transaction_items: makeDemoAdapter(() => DEMO_POS_TXN_ITEMS, "pos_transaction_items"),
   branch_inventory: makeDemoAdapter(() => DEMO_BRANCH_INVENTORY),
   stock_movements: makeDemoAdapter(() => []),
   workspace_invitations: makeDemoAdapter(() => []),

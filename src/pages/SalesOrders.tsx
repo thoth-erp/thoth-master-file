@@ -16,6 +16,8 @@ import { exportCSV } from "../lib/csv-export";
 import { calcBreakdown } from "../lib/money";
 import { usePagedList, pagedKey } from "../hooks/usePagedList";
 import { PagerBar } from "../components/PagerBar";
+import { salesOrderMetaSchema, describeIssues } from "../lib/schemas/money-schemas";
+import { isValidationError } from "../lib/errors";
 import type { Database } from "../lib/database.types";
 import ConnectedSearch, { type SearchResult } from "../components/ConnectedSearch";
 import {
@@ -253,6 +255,14 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
         estimated_days: estimatedDays, estimated_cost: estimatedCost,
         manufacturing_route: mfgRoute,
       };
+      // H3: validate money fields before writing (adapter enforces the
+      // same schema — this surfaces issues in the wizard instead).
+      const parsed = salesOrderMetaSchema.safeParse(meta);
+      if (!parsed.success) {
+        setError(describeIssues(parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })), ar));
+        setLoading(false);
+        return;
+      }
       const res = await getDataSource().work_items.create(workspace?.id || "demo", {
         workspace_id: workspace?.id || "demo",
         title_en: `${soNumber} — ${customerName || projectName}`,
@@ -263,7 +273,9 @@ function SOWizard({ ar, currency, searchResults, products, onClose, onAdd }: {
       } as any);
       if (res) { onAdd(res); onClose(); }
       else setError(ar ? "حصل خطأ" : "Failed to create order");
-    } catch { setError(ar ? "حصل خطأ" : "Error creating order"); }
+    } catch (err) {
+      setError(isValidationError(err) ? describeIssues(err.issues, ar) : (ar ? "حصل خطأ" : "Error creating order"));
+    }
     setLoading(false);
   }
 

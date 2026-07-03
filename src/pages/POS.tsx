@@ -11,6 +11,9 @@ import {
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
+import { toast } from "sonner";
+import { posTransactionSchema, describeIssues } from "../lib/schemas/money-schemas";
+import { isValidationError } from "../lib/errors";
 import { CustomerDrawer } from "../components/pos/CustomerDrawer";
 import { ProductDrawer } from "../components/pos/ProductDrawer";
 import { ReportsPanel } from "../components/pos/ReportsPanel";
@@ -53,6 +56,7 @@ interface HeldTxn {
 
 export default function POS() {
   const { lang, isRtl } = useLanguage();
+  const ar = lang === "ar";
   const { workspace } = useAuth();
   const wsId = workspace?.id || "demo";
   const ds = useMemo(() => getDataSource(), []);
@@ -254,10 +258,8 @@ export default function POS() {
   }, []);
 
   const processPayment = useCallback(async () => {
-    setProcessing(true);
-    await new Promise((r) => setTimeout(r, 1200));
     const txnNumber = `TXN-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
-    await ds.pos_transactions.create(wsId, {
+    const txnPayload = {
       branch_id: selectedBranch,
       register_id: selectedRegister,
       transaction_number: txnNumber,
@@ -274,30 +276,55 @@ export default function POS() {
       payment_details: paymentMethod === "cash" ? { cash_received: Number(cashReceived), change: Number(cashReceived) - cartTotals.total }
         : paymentMethod === "split" ? { cash: Number(splitCash), card: Number(splitCard) }
         : {},
-      status: "completed",
+      status: "completed" as const,
       cashier_name: cashierName,
       notes: notes || null,
       receipt_printed: false,
       loyalty_points_earned: Math.floor(cartTotals.subtotal),
       loyalty_points_redeemed: 0,
       metadata: {},
-    });
-    for (const item of cart) {
-      await ds.pos_transaction_items.create(wsId, {
-        transaction_id: txnNumber,
-        product_id: item.product_id,
-        product_name: item.product_name,
-        product_name_ar: item.product_name_ar,
-        sku: item.sku,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        discount_amount: item.unit_price * item.quantity * (item.discount_percent / 100),
-        discount_percent: item.discount_percent,
-        total: item.unit_price * item.quantity * (1 - item.discount_percent / 100),
-        cost_price: item.cost_price,
-        branch_id: selectedBranch,
-        metadata: {},
+    };
+
+    // H3: validate BEFORE the payment animation — catches cash received
+    // under the total (Number("") === 0 used to sail through here).
+    const check = posTransactionSchema.safeParse(txnPayload);
+    if (!check.success) {
+      toast.error(ar ? "راجع بيانات الدفع" : "Check the payment", {
+        description: describeIssues(check.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })), ar),
       });
+      return;
+    }
+
+    setProcessing(true);
+    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      await ds.pos_transactions.create(wsId, txnPayload);
+      for (const item of cart) {
+        await ds.pos_transaction_items.create(wsId, {
+          transaction_id: txnNumber,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_name_ar: item.product_name_ar,
+          sku: item.sku,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_amount: item.unit_price * item.quantity * (item.discount_percent / 100),
+          discount_percent: item.discount_percent,
+          total: item.unit_price * item.quantity * (1 - item.discount_percent / 100),
+          cost_price: item.cost_price,
+          branch_id: selectedBranch,
+          metadata: {},
+        });
+      }
+    } catch (err) {
+      // Keep the cart — the sale did NOT complete.
+      setProcessing(false);
+      if (isValidationError(err)) {
+        toast.error(ar ? "راجع بيانات الدفع" : "Check the payment", { description: describeIssues(err.issues, ar) });
+      } else {
+        toast.error(ar ? "فشلت عملية الدفع" : "Payment failed", { description: ar ? "لم يتم تسجيل البيع." : "The sale was not recorded." });
+      }
+      return;
     }
     setReceipt({ txnNumber, total: cartTotals.total, items: [...cart] });
     setProcessing(false);

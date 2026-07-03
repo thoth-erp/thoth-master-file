@@ -64,6 +64,16 @@ error toast; nothing silently no-ops.
 **Done when:** it is impossible to save a negative quantity, malformed
 price, or empty required field on any money form.
 
+> Scope adjustment (2026-07-03): Invoices, Expenses, and Payroll have no
+> write forms — those screens render static data (same finding as H2), so
+> there is nothing to validate until they're wired to the adapter
+> (H7/H10). Validated everywhere money is actually written: quotations,
+> sales orders (incl. payments), POS checkout (incl. cash-received /
+> split coverage), stock movements, cost entries. Enforced at the adapter
+> in BOTH modes via ValidationError + zod registry
+> (schemas/money-schemas.ts); forms show inline messages. Zod messages
+> are English-only until the H6 Arabic sweep.
+
 ---
 
 ## Phase 2 — CONTROL
