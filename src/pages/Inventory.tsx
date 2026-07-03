@@ -15,6 +15,9 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { getDataSource } from "../lib/data-source";
+import { useQueryClient } from "@tanstack/react-query";
+import { usePagedList, pagedKey } from "../hooks/usePagedList";
+import { PagerBar } from "../components/PagerBar";
 import { exportCSV } from "../lib/csv-export";
 import { uploadFile, BUCKETS } from "../lib/storage";
 import { isDemoMode } from "../lib/supabase";
@@ -1059,6 +1062,8 @@ function DetailDrawer({ resource, ar, currency, movements, maintenance, abc, onC
 type InvTab = "dashboard" | "materials" | "inventory" | "assets" | "movements" | "maintenance";
 type SortKey = "value" | "qty" | "name";
 
+const MOVE_PAGE_SIZE = 50;
+
 export default function Inventory() {
   const { lang } = useLanguage();
   const { workspace } = useAuth();
@@ -1068,7 +1073,14 @@ export default function Inventory() {
 
   const [loading, setLoading] = useState(true);
   const [resources, setResources] = useState<Resource[]>([]);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  // H2: movements/maintenance are paged server-side (work_items is the
+  // unbounded table here — 100k movements must never be fetched whole).
+  // localMoves/localMaint keep optimistic adds visible: demo-mode creates
+  // are ephemeral, and in live mode the refetch dedupes them by id.
+  const [movePage, setMovePage] = useState(0);
+  const [localMoves, setLocalMoves] = useState<WorkItem[]>([]);
+  const [localMaint, setLocalMaint] = useState<WorkItem[]>([]);
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<InvTab>("dashboard");
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState<string>("all");
@@ -1086,16 +1098,27 @@ export default function Inventory() {
   useEffect(() => {
     const wid = workspace?.id || "demo";
     const ds = getDataSource();
-    Promise.all([ds.resources.list(wid), ds.work_items.list(wid)])
-      .then(([r, w]) => { setResources(r as Resource[]); setWorkItems(w as WorkItem[]); })
+    ds.resources.list(wid)
+      .then((r) => setResources(r as Resource[]))
       .finally(() => setLoading(false));
   }, [workspace?.id]);
+
+  const mvQ = usePagedList<WorkItem>("work_items", { filters: { type: "stock_movement" }, page: movePage, pageSize: MOVE_PAGE_SIZE });
+  const mtQ = usePagedList<WorkItem>("work_items", { filters: { type: "maintenance" }, pageSize: 200 });
 
   const invItems = useMemo(() => resources.filter(isInventoryItem), [resources]);
   const products = useMemo(() => resources.filter(isProduct), [resources]);
   const assets = useMemo(() => resources.filter((r) => !isInventoryItem(r) && !isProduct(r)), [resources]);
-  const movements = useMemo(() => workItems.filter((w) => w.type === "stock_movement"), [workItems]);
-  const maintenance = useMemo(() => workItems.filter((w) => w.type === "maintenance"), [workItems]);
+  // Local copies win over the fetched page (they carry unsynced demo adds
+  // and optimistic status patches).
+  const movements = useMemo(
+    () => [...localMoves, ...mvQ.rows.filter((r) => !localMoves.some((l) => l.id === r.id))],
+    [localMoves, mvQ.rows]);
+  const maintenance = useMemo(
+    () => [...localMaint, ...mtQ.rows.filter((r) => !localMaint.some((l) => l.id === r.id))],
+    [localMaint, mtQ.rows]);
+  const moveCount = mvQ.total + localMoves.filter((l) => !mvQ.rows.some((r) => r.id === l.id)).length;
+  const maintCount = mtQ.total + localMaint.filter((l) => !mtQ.rows.some((r) => r.id === l.id)).length;
 
   const fmtVal = (v: number) => new Intl.NumberFormat(ar ? "ar-SA" : "en-SA", { style: "currency", currency, maximumFractionDigits: 0 }).format(v);
   const fmtCompact = (v: number) => new Intl.NumberFormat(ar ? "ar-SA" : "en-SA", { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(v);
@@ -1257,7 +1280,7 @@ export default function Inventory() {
   [outOfStock, lowStock]); // eslint-disable-line react-hooks/exhaustive-deps
   const reorderBudget = reorderPlan.reduce((s, x) => s + x.cost, 0);
 
-  const hasData = resources.length > 0 || movements.length > 0 || maintenance.length > 0;
+  const hasData = resources.length > 0 || moveCount > 0 || maintCount > 0;
 
   // ── Filtering + sorting ──
   function applyFilters(list: Resource[], isInv: boolean): Resource[] {
@@ -1307,7 +1330,10 @@ export default function Inventory() {
       priority: "medium" as WorkItem["priority"], progress: 100, tags: ["inventory"],
       metadata: { resource_id: r.id, resource_name: r.name_en, move_qty: qty, move_type: type, reason: ar ? "تعديل سريع" : "Quick adjust" },
     });
-    if (created) setWorkItems((prev) => [created as WorkItem, ...prev]);
+    if (created) {
+      setLocalMoves((prev) => [created as WorkItem, ...prev]);
+      queryClient.invalidateQueries({ queryKey: pagedKey("work_items") });
+    }
     const m = getMeta(r);
     const cur = m.quantity ?? 0;
     const next = type === "stock_in" ? cur + qty : Math.max(0, cur - qty);
@@ -1398,8 +1424,8 @@ export default function Inventory() {
             { id: "materials" as const, en: `Materials & BOM (${products.length})`, ar: `الخامات والمكونات (${products.length})` },
             { id: "inventory" as const, en: `Inventory (${invItems.length})`, ar: `المخزون (${invItems.length})` },
             { id: "assets" as const, en: `Assets (${assets.length})`, ar: `الأصول (${assets.length})` },
-            { id: "movements" as const, en: `Movements (${movements.length})`, ar: `الحركات (${movements.length})` },
-            { id: "maintenance" as const, en: `Maintenance (${maintenance.length})`, ar: `الصيانة (${maintenance.length})` },
+            { id: "movements" as const, en: `Movements (${moveCount.toLocaleString("en")})`, ar: `الحركات (${moveCount.toLocaleString("ar-EG")})` },
+            { id: "maintenance" as const, en: `Maintenance (${maintCount.toLocaleString("en")})`, ar: `الصيانة (${maintCount.toLocaleString("ar-EG")})` },
           ]).map((t) => (
             <button key={t.id} onClick={() => { setTab(t.id); setSearch(""); setCatFilter("all"); setStatusFilter("all"); }}
               className={`px-4 py-3 text-[12px] font-medium border-b-2 whitespace-nowrap transition-all ${tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
@@ -1717,7 +1743,7 @@ export default function Inventory() {
             {movements.length === 0 ? (
               <div className="py-16 text-center text-[13px] text-muted-foreground/50">{ar ? "مفيش حركات مخزون" : "No stock movements"}</div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2" data-testid="movements-list">
                 {movements.map((w) => {
                   const m = getMoveMeta(w);
                   const mt = MOVE_TYPES.find((t) => t.value === m.move_type);
@@ -1737,6 +1763,7 @@ export default function Inventory() {
                     </div>
                   );
                 })}
+                <PagerBar page={movePage} pageSize={MOVE_PAGE_SIZE} total={mvQ.total} onPage={setMovePage} ar={ar} fetching={mvQ.fetching} />
               </div>
             )}
           </>
@@ -1768,7 +1795,7 @@ export default function Inventory() {
                       </div>
                       {m.cost ? <p className="text-[13px] font-medium tabular-nums shrink-0">{fmtVal(m.cost)}</p> : null}
                       {w.status === "planned" && (
-                        <button onClick={async () => { await getDataSource().work_items.update(workspace?.id ?? "", w.id, { status: "done", progress: 100 }); setWorkItems((prev) => prev.map((i) => i.id === w.id ? { ...i, status: "done" as WorkItem["status"], progress: 100 } : i)); }}
+                        <button onClick={async () => { await getDataSource().work_items.update(workspace?.id ?? "", w.id, { status: "done", progress: 100 }); const patched = { ...w, status: "done" as WorkItem["status"], progress: 100 }; setLocalMaint((prev) => [patched, ...prev.filter((p) => p.id !== w.id)]); queryClient.invalidateQueries({ queryKey: pagedKey("work_items") }); }}
                           className="text-[11px] text-emerald-600 font-medium hover:opacity-70 shrink-0">{ar ? "اكتمل" : "Complete"}</button>
                       )}
                     </div>
@@ -1787,8 +1814,8 @@ export default function Inventory() {
         <ItemModal mode={isInventoryItem(editTarget) ? "inventory" : "asset"} initial={editTarget} ar={ar} currency={currency}
           onClose={() => setEditTarget(null)} onSaved={patchResource} />
       )}
-      {moveModal && <AddMovementModal ar={ar} resources={invItems} onClose={() => setMoveModal(false)} onAdd={(w) => setWorkItems((prev) => [w, ...prev])} onResourceUpdate={patchResource} />}
-      {maintModal && <AddMaintenanceModal ar={ar} resources={resources} currency={currency} onClose={() => setMaintModal(false)} onAdd={(w) => setWorkItems((prev) => [w, ...prev])} />}
+      {moveModal && <AddMovementModal ar={ar} resources={invItems} onClose={() => setMoveModal(false)} onAdd={(w) => { setLocalMoves((prev) => [w, ...prev]); queryClient.invalidateQueries({ queryKey: pagedKey("work_items") }); }} onResourceUpdate={patchResource} />}
+      {maintModal && <AddMaintenanceModal ar={ar} resources={resources} currency={currency} onClose={() => setMaintModal(false)} onAdd={(w) => { setLocalMaint((prev) => [w, ...prev]); queryClient.invalidateQueries({ queryKey: pagedKey("work_items") }); }} />}
 
       {selected && !editTarget && (
         <DetailDrawer

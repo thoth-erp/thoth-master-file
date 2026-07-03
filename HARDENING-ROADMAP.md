@@ -40,11 +40,21 @@ error toast; nothing silently no-ops.
 
 ### Sprint H2 — Pagination + caching (M2) · 3–5 days
 - Add TanStack Query as the fetch layer.
-- Adapter `list()` gains `{ page, pageSize, orderBy, filters }` → `.range()` server-side.
-- Convert the 5 heaviest screens first: Inventory, Products, FinanceInvoices, SalesOrders, Activity.
-- Seed script generating 100k rows to prove it.
+- Adapter gains `listPaged({ page, pageSize, orderBy, filters, search })` → `.range()` + exact count server-side, mirrored in the demo adapter.
+- Convert the unbounded work_items streams first: Inventory (movements + maintenance), SalesOrders.
+- Load-test seed (`localStorage.thoth_loadtest`) backing demo mode with 100k rows to prove it.
 
 **Done when:** Inventory with 100k stock movements loads under 1 second.
+
+> Scope adjustment (2026-07-03): the original list named Products,
+> FinanceInvoices, and Activity. Audit findings changed that: Products
+> lists master data (hundreds of rows, not the 100k class), and
+> FinanceInvoices/Activity render static demo arrays without touching the
+> adapter at all — paginating a static array is meaningless. Those two
+> need real-data wiring first (H7/H10). Known interim limits: Inventory
+> dashboard charts/"last move" derive from the most recent page, and
+> SalesOrders header stats/CSV cover the 500 most recent orders (exact
+> counts stay exact) until aggregates move into Postgres.
 
 ### Sprint H3 — Validation (M3) · 3–4 days
 - `src/lib/schemas/` — one zod schema per entity; adapter `create/update` parses before writing.

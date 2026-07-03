@@ -5,7 +5,8 @@
  * 6-Step Wizard: Customer → Product Selection → Details → Mfg Route → Cost/Time → Confirm
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useDeferredValue } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
 import { isDemoMode } from "../lib/supabase";
@@ -13,6 +14,8 @@ import { getDataSource } from "../lib/data-source";
 import { generateCode } from "../lib/code-generator";
 import { exportCSV } from "../lib/csv-export";
 import { calcBreakdown } from "../lib/money";
+import { usePagedList, pagedKey } from "../hooks/usePagedList";
+import { PagerBar } from "../components/PagerBar";
 import type { Database } from "../lib/database.types";
 import ConnectedSearch, { type SearchResult } from "../components/ConnectedSearch";
 import {
@@ -71,6 +74,8 @@ function soGrand(m: SOMeta): number {
     tax_rate: m.tax_rate,
   }).grand;
 }
+
+const SO_PAGE_SIZE = 25;
 
 function genSONumber(): string {
   const d = new Date();
@@ -714,7 +719,6 @@ export default function SalesOrders() {
   const currency = (settings?.currency as string) || "EGP";
 
   const [loading, setLoading] = useState(true);
-  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [customers, setCustomers] = useState<Org[]>([]);
   const [people, setPeople] = useState<Person[]>([]);
   const [products, setProducts] = useState<Resource[]>([]);
@@ -723,32 +727,59 @@ export default function SalesOrders() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [deleteTarget, setDeleteTarget] = useState<WorkItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  // H2: orders come paged from the server. localSO holds optimistic
+  // adds/patches (demo creates are ephemeral; live refetch dedupes by id),
+  // removedIds are delete tombstones so removed rows vanish immediately.
+  const [soPage, setSoPage] = useState(0);
+  const [localSO, setLocalSO] = useState<WorkItem[]>([]);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const wid = workspace?.id || "demo";
     Promise.all([
-      getDataSource().work_items.list(wid),
       getDataSource().organizations.list(wid),
       getDataSource().people.list(wid),
       getDataSource().resources.list(wid),
-    ]).then(([wi, orgs, ppl, res]) => {
-      setWorkItems(wi as WorkItem[]);
+    ]).then(([orgs, ppl, res]) => {
       setCustomers(orgs as Org[]);
       setPeople(ppl as Person[]);
       setProducts((res as Resource[]).filter(r => r.type === "product" || (r.skills ?? []).includes("product")));
     }).finally(() => setLoading(false));
   }, [workspace?.id]);
 
-  const orders = useMemo(() => workItems.filter(w => w.type === "sales_order"), [workItems]);
+  // Defer search so we don't fire a query per keystroke.
+  const searchTerm = useDeferredValue(search.trim());
+  const soQ = usePagedList<WorkItem>("work_items", {
+    filters: { type: "sales_order", ...(filterStatus !== "all" ? { status: filterStatus } : {}) },
+    page: soPage,
+    pageSize: SO_PAGE_SIZE,
+    ...(searchTerm ? { search: { columns: ["title_en", "metadata->>so_number", "metadata->>customer_name", "metadata->>project_name"], term: searchTerm } } : {}),
+  });
+  // Header stats + CSV export need more than one page: bounded to the 500
+  // most recent orders (exact counts come from statsQ.total). Businesses
+  // beyond that get "recent 500" stats until aggregates move into Postgres.
+  const statsQ = usePagedList<WorkItem>("work_items", { filters: { type: "sales_order" }, pageSize: 500 });
+
+  useEffect(() => { setSoPage(0); }, [searchTerm, filterStatus]);
+
+  const mergeLocal = (rows: WorkItem[]) =>
+    [...localSO, ...rows.filter(r => !localSO.some(l => l.id === r.id))].filter(w => !removedIds.has(w.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const orders = useMemo(() => mergeLocal(statsQ.rows), [localSO, removedIds, statsQ.rows]);
+  // Server already filters/searches its rows; the client pass keeps the
+  // same rules applied to optimistic local adds.
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return orders.filter(o => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return mergeLocal(soQ.rows).filter(o => {
       const m = getM(o);
       const ms = !q || (m.so_number ?? "").toLowerCase().includes(q) || (m.customer_name ?? "").toLowerCase().includes(q) || (m.project_name ?? "").toLowerCase().includes(q) || (o.title_en ?? "").toLowerCase().includes(q);
       const fs = filterStatus === "all" || o.status === filterStatus;
       return ms && fs;
     });
-  }, [orders, search, filterStatus]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localSO, removedIds, soQ.rows, search, filterStatus]);
 
   // Build search results for ConnectedSearch
   const searchResults: SearchResult[] = useMemo(() => {
@@ -770,36 +801,46 @@ export default function SalesOrders() {
     return results;
   }, [customers, people]);
 
+  const totalOrders = Math.max(statsQ.total, orders.length);
   const confirmed = orders.filter(o => o.status === "approved").length;
   const inProd = orders.filter(o => o.status === "in_progress").length;
   const ready = orders.filter(o => o.status === "review").length;
   const overdue = orders.filter(o => o.due_date && !["done", "cancelled", "sent"].includes(o.status) && new Date(o.due_date) < new Date(new Date().toDateString())).length;
   const totalValue = orders.reduce((s, o) => s + soGrand(getM(o)), 0);
 
+  /** Optimistic local patch + background refetch (see localSO above). */
+  function patchLocal(id: string, patch: Partial<WorkItem>) {
+    const current = orders.find(w => w.id === id) ?? filtered.find(w => w.id === id);
+    if (current) setLocalSO(prev => [{ ...current, ...patch } as WorkItem, ...prev.filter(p => p.id !== id)]);
+    queryClient.invalidateQueries({ queryKey: pagedKey("work_items") });
+  }
+
   async function updateStatus(id: string, newStatus: string) {
     await getDataSource().work_items.update(workspace?.id ?? "", id, { status: newStatus as never });
-    setWorkItems(prev => prev.map(w => w.id === id ? { ...w, status: newStatus as WorkItem["status"] } : w));
+    patchLocal(id, { status: newStatus as WorkItem["status"] });
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleteLoading(true);
     await getDataSource().work_items.remove(workspace?.id || "demo", deleteTarget.id);
-    setWorkItems(prev => prev.filter(w => w.id !== deleteTarget.id));
+    setRemovedIds(prev => new Set(prev).add(deleteTarget.id));
+    setLocalSO(prev => prev.filter(p => p.id !== deleteTarget.id));
+    queryClient.invalidateQueries({ queryKey: pagedKey("work_items") });
     setDeleteLoading(false);
     setDeleteTarget(null);
   }
 
   async function toggleReadiness(id: string, field: string) {
-    const item = workItems.find(w => w.id === id);
+    const item = orders.find(w => w.id === id) ?? filtered.find(w => w.id === id);
     if (!item) return;
     const m = getM(item);
     const updated = { ...m, [field]: !(m as Record<string, unknown>)[field] };
     await getDataSource().work_items.update(workspace?.id ?? "", id, { metadata: updated } as Partial<WorkItem>);
-    setWorkItems(prev => prev.map(w => w.id === id ? { ...w, metadata: updated as any } : w));
+    patchLocal(id, { metadata: updated as WorkItem["metadata"] });
   }
 
-  if (loading) return <div className="flex items-center justify-center py-24"><Loader2 size={20} className="animate-spin text-muted-foreground/40" /></div>;
+  if (loading || soQ.loading) return <div className="flex items-center justify-center py-24"><Loader2 size={20} className="animate-spin text-muted-foreground/40" /></div>;
 
   return (
     <div className="min-h-full">
@@ -831,7 +872,7 @@ export default function SalesOrders() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
-              { icon: FileText, value: orders.length, label: ar ? "إجمالي الطلبات" : "Total Orders", color: "text-primary" },
+              { icon: FileText, value: totalOrders.toLocaleString("en"), label: ar ? "إجمالي الطلبات" : "Total Orders", color: "text-primary" },
               { icon: CheckCircle2, value: confirmed, label: ar ? "مؤكد" : "Confirmed", color: "text-blue-600" },
               { icon: Wrench, value: inProd, label: ar ? "في التصنيع" : "In Production", color: "text-violet-600" },
               { icon: Truck, value: ready, label: ar ? "جاهز للتسليم" : "Ready", color: "text-amber-600" },
@@ -957,11 +998,12 @@ export default function SalesOrders() {
                 </div>
               );
             })}
+            <PagerBar page={soPage} pageSize={SO_PAGE_SIZE} total={soQ.total} onPage={setSoPage} ar={ar} fetching={soQ.fetching} />
           </div>
         )}
       </div>
 
-      {modal && <SOWizard ar={ar} currency={currency} searchResults={searchResults} products={products} onClose={() => setModal(false)} onAdd={w => setWorkItems(prev => [w, ...prev])} />}
+      {modal && <SOWizard ar={ar} currency={currency} searchResults={searchResults} products={products} onClose={() => setModal(false)} onAdd={w => { setLocalSO(prev => [w, ...prev]); queryClient.invalidateQueries({ queryKey: pagedKey("work_items") }); }} />}
 
       <ConfirmDeleteModal
         open={!!deleteTarget}

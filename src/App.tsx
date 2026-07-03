@@ -120,7 +120,16 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { isDemoMode } from "./lib/supabase";
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Lists stay fresh for 30s — navigating back re-renders from cache
+      // instantly instead of refetching every table on every visit.
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
 
 // ─── Placeholder for unbuilt modules ─────────────────────
 

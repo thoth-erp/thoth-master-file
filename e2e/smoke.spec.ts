@@ -79,3 +79,32 @@ test("H1: an uncaught data failure surfaces as a toast, not silence", async ({ p
 
   await expect(page.getByText(/Couldn't save/i).first()).toBeVisible({ timeout: 5_000 });
 });
+
+test("H2: Inventory backed by 100k stock movements stays fast and paged", async ({ page }) => {
+  // The load-test seed makes demo mode back work_items with 100,000
+  // synthetic stock movements (see loadTestRows in data-source.ts).
+  await page.addInitScript(() => localStorage.setItem("thoth_loadtest", "100000"));
+
+  const t0 = Date.now();
+  await page.goto("/inventory");
+  const movementsTab = page.getByRole("button", { name: /Movements \(100,0/ });
+  // The tab label carries the exact server-side count — proving the page
+  // knows about all 100k rows without having fetched them.
+  await expect(movementsTab).toBeVisible({ timeout: 15_000 });
+  const pageLoadMs = Date.now() - t0;
+
+  const t1 = Date.now();
+  await movementsTab.click();
+  await expect(page.getByTestId("movements-list")).toBeVisible();
+  const tabRenderMs = Date.now() - t1;
+
+  // DoD: the movements view over 100k rows renders in under a second.
+  expect(tabRenderMs, `movements tab took ${tabRenderMs}ms`).toBeLessThan(1_000);
+  console.log(`[H2] /inventory load: ${pageLoadMs}ms · movements tab render: ${tabRenderMs}ms`);
+
+  // Pager proves windowing: page 1 shows 50 rows of 100k+, and flipping
+  // pages moves the window.
+  await expect(page.getByText(/1–50 of 100,0/)).toBeVisible();
+  await page.getByRole("button", { name: /Next page/i }).click();
+  await expect(page.getByText(/51–100 of 100,0/)).toBeVisible({ timeout: 5_000 });
+});

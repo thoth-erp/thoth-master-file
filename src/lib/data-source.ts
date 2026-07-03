@@ -257,12 +257,45 @@ function convertResources(): Tables["resources"]["Row"][] {
 
 // ─── Generic CRUD shape ────────────────────────────────────
 
+/** Server-side pagination options (H2). */
+export interface PageOpts {
+  /** 0-based page index. Default 0. */
+  page?: number;
+  /** Rows per page, 1–500. Default 50. */
+  pageSize?: number;
+  /** Column to sort by. Default "created_at". */
+  orderBy?: string;
+  /** Sort direction. Default false (newest first). */
+  ascending?: boolean;
+  /** Equality filters; array values use contains (e.g. skills). */
+  filters?: Record<string, unknown>;
+  /** Case-insensitive substring match across columns (OR).
+   *  Supports jsonb paths like "metadata->>so_number". */
+  search?: { columns: string[]; term: string };
+}
+
+export interface PagedResult<T> {
+  rows: T[];
+  /** Exact total matching rows (all pages), for pager UI + counts. */
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface EntityAdapter<T> {
   list(workspaceId: string, filters?: Record<string, unknown>): Promise<T[]>;
+  listPaged(workspaceId: string, opts?: PageOpts): Promise<PagedResult<T>>;
   get(workspaceId: string, id: string): Promise<T | null>;
   create(workspaceId: string, data: Partial<T>): Promise<T | null>;
   update(workspaceId: string, id: string, data: Partial<T>): Promise<T | null>;
   remove(workspaceId: string, id: string): Promise<boolean>;
+}
+
+function clampPage(opts: PageOpts): { page: number; pageSize: number } {
+  return {
+    page: Math.max(0, opts.page ?? 0),
+    pageSize: Math.min(500, Math.max(1, opts.pageSize ?? 50)),
+  };
 }
 
 // ─── Supabase adapter factory ──────────────────────────────
@@ -291,6 +324,29 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
       const { data, error } = await query.order("created_at", { ascending: false });
       if (error) fail("list", error.message, workspaceId, error);
       return (data ?? []) as T[];
+    },
+
+    async listPaged(workspaceId, opts = {}) {
+      if (!supabase) fail("list", "no database connection (live mode without Supabase client)", workspaceId);
+      const { page, pageSize } = clampPage(opts);
+      let query = supabase
+        .from(table as string)
+        .select("*", { count: "exact" })
+        .eq("workspace_id", workspaceId);
+      if (opts.filters) {
+        for (const [k, v] of Object.entries(opts.filters)) {
+          query = Array.isArray(v) ? query.contains(k, v) : query.eq(k, v as string);
+        }
+      }
+      const term = opts.search?.term.trim().replace(/[,()%]/g, "") ?? "";
+      if (opts.search && term) {
+        query = query.or(opts.search.columns.map((c) => `${c}.ilike.%${term}%`).join(","));
+      }
+      const { data, error, count } = await query
+        .order(opts.orderBy ?? "created_at", { ascending: opts.ascending ?? false })
+        .range(page * pageSize, page * pageSize + pageSize - 1);
+      if (error) fail("list", error.message, workspaceId, error);
+      return { rows: (data ?? []) as T[], total: count ?? 0, page, pageSize };
     },
 
     async get(workspaceId, id) {
@@ -347,9 +403,60 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
 
 // ─── Demo adapters (wrap static data as async) ────────────
 
+/** Resolve a column value on a demo row; supports "metadata->>key" jsonb paths. */
+function demoCol(row: Record<string, unknown>, col: string): unknown {
+  const jsonb = col.match(/^(\w+)->>(\w+)$/);
+  if (jsonb) {
+    const outer = row[jsonb[1]];
+    return outer && typeof outer === "object" ? (outer as Record<string, unknown>)[jsonb[2]] : undefined;
+  }
+  return row[col];
+}
+
 function makeDemoAdapter<T>(loader: () => T[]): EntityAdapter<T> {
   return {
     async list() { return loader(); },
+
+    // Mirrors the Supabase listPaged semantics so pages behave identically
+    // in demo and live mode (filters → eq/contains, search → OR ilike).
+    async listPaged(_ws, opts = {}) {
+      const { page, pageSize } = clampPage(opts);
+      let rows = loader() as Array<Record<string, unknown>>;
+      if (opts.filters) {
+        rows = rows.filter((r) => Object.entries(opts.filters!).every(([k, v]) =>
+          Array.isArray(v)
+            ? Array.isArray(r[k]) && v.every((x) => (r[k] as unknown[]).includes(x))
+            : r[k] === v));
+      }
+      const term = opts.search?.term.trim().toLowerCase() ?? "";
+      if (opts.search && term) {
+        rows = rows.filter((r) => opts.search!.columns.some((c) => {
+          const v = demoCol(r, c);
+          return typeof v === "string" && v.toLowerCase().includes(term);
+        }));
+      }
+      const ob = opts.orderBy ?? "created_at";
+      const asc = opts.ascending ?? false;
+      // Plain <> comparison, NOT localeCompare: ISO dates/codes compare
+      // correctly bytewise, and ICU collation is ~50x slower — it turned
+      // the 100k load-test sort into seconds.
+      rows = [...rows].sort((a, b) => {
+        const av = a[ob], bv = b[ob];
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        let cmp: number;
+        if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+        else { const as = String(av), bs = String(bv); cmp = as < bs ? -1 : as > bs ? 1 : 0; }
+        return asc ? cmp : -cmp;
+      });
+      return {
+        rows: rows.slice(page * pageSize, (page + 1) * pageSize) as T[],
+        total: rows.length,
+        page,
+        pageSize,
+      };
+    },
     async get(_ws, id) { return loader().find((r: unknown) => (r as { id: string }).id === id) ?? null; },
     async create(_ws, data) {
       console.warn("[DS] Demo mode — create is ephemeral");
@@ -407,6 +514,51 @@ export interface DataSource {
   notifications: EntityAdapter<any>;
 }
 
+// ─── Load-test seed (H2 proof) ─────────────────────────────
+// Set localStorage.thoth_loadtest = "100000" and reload: demo mode then
+// backs work_items with N synthetic stock movements, so pagination can be
+// proven against a realistic volume without a live database.
+
+type WorkRow = Tables["work_items"]["Row"];
+
+let loadTestCache: { n: number; rows: WorkRow[] } | null = null;
+
+function loadTestRows(): WorkRow[] {
+  const n = typeof localStorage === "undefined"
+    ? 0
+    : Math.min(500_000, parseInt(localStorage.getItem("thoth_loadtest") || "0", 10) || 0);
+  if (n <= 0) return [];
+  if (loadTestCache?.n !== n) {
+    const now = Date.now();
+    const rows: WorkRow[] = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const inbound = i % 3 !== 0;
+      rows[i] = {
+        id: `loadtest-${i}`,
+        workspace_id: "demo",
+        title_en: `${inbound ? "Stock In" : "Stock Out"}: Load Test Item #${i % 500} (${(i % 20) + 1})`,
+        title_ar: `${inbound ? "إدخال" : "إخراج"}: صنف اختبار #${i % 500}`,
+        type: "stock_movement",
+        status: "done",
+        priority: "medium",
+        progress: 100,
+        tags: ["inventory"],
+        metadata: {
+          resource_name: `Load Test Item #${i % 500}`,
+          move_qty: (i % 20) + 1,
+          move_type: inbound ? "stock_in" : "stock_out",
+          from_location: inbound ? null : "Main Warehouse",
+          to_location: inbound ? "Main Warehouse" : null,
+        },
+        created_at: new Date(now - i * 60_000).toISOString(),
+        updated_at: new Date(now - i * 60_000).toISOString(),
+      } as unknown as WorkRow;
+    }
+    loadTestCache = { n, rows };
+  }
+  return loadTestCache.rows;
+}
+
 // ─── Demo DataSource ───────────────────────────────────────
 
 const demoDataSource: DataSource = {
@@ -418,7 +570,7 @@ const demoDataSource: DataSource = {
   people:          makeDemoAdapter(convertPeople),
   organizations:   makeDemoAdapter(() => [...convertOrganizations(), ...DEMO_VENDORS]),
   resources:       makeDemoAdapter(() => [...convertResources(), ...DEMO_INVENTORY, ...DEMO_PRODUCTS]),
-  work_items:      makeDemoAdapter(() => [...convertWorkItems(), ...DEMO_SALES_ORDERS, ...DEMO_QUOTATIONS, ...DEMO_PURCHASE_ITEMS, ...DEMO_STOCK_MOVEMENTS, ...DEMO_MAINTENANCE]),
+  work_items:      makeDemoAdapter(() => [...convertWorkItems(), ...DEMO_SALES_ORDERS, ...DEMO_QUOTATIONS, ...DEMO_PURCHASE_ITEMS, ...DEMO_STOCK_MOVEMENTS, ...DEMO_MAINTENANCE, ...loadTestRows()]),
   activity_events: makeDemoAdapter(() => DEMO_ACTIVITY_EVENTS),
   site_visits: makeDemoAdapter(() => DEMO_SITE_VISITS),
   measurements: makeDemoAdapter(() => DEMO_MEASUREMENTS),
