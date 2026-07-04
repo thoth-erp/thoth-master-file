@@ -48,6 +48,10 @@ import {
   Receipt,
   DollarSign,
   Smartphone,
+  ArrowLeftRight,
+  Boxes,
+  Wallet,
+  Store,
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { useOnboarding } from "../context/OnboardingContext";
@@ -130,8 +134,16 @@ const LOYALTY_NAV = [
   { id: "loyalty-analytics",icon: TrendingUp,   labelEn: "Analytics",     labelAr: "التحليلات",        path: "/loyalty/analytics" },
   { id: "loyalty-merge",    icon: GitMerge,     labelEn: "Merge",         labelAr: "الدمج",            path: "/loyalty/merge" },
   { id: "loyalty-notify",   icon: Bell,         labelEn: "Notifications", labelAr: "الإشعارات",        path: "/loyalty/notifications" },
-  { id: "loyalty-shopify",   icon: ShoppingCart,  labelEn: "Shopify",       labelAr: "شوبيفاي",          path: "/loyalty/shopify" },
   { id: "loyalty-settings",  icon: Settings,     labelEn: "Settings",      labelAr: "الإعدادات",        path: "/loyalty/settings" },
+] as const;
+
+const SHOPIFY_NAV = [
+  { id: "shopify-integration", icon: ArrowLeftRight, labelEn: "Integration",  labelAr: "التكامل",       path: "/shopify/integration" },
+  { id: "shopify-sync-logs",   icon: Activity,       labelEn: "Sync Logs",    labelAr: "سجل المزامنة",  path: "/shopify/sync-logs" },
+  { id: "shopify-kit",         icon: Boxes,          labelEn: "Shopify Kit",  labelAr: "عدة شوبيفاي",   path: "/shopify/kit" },
+  { id: "shopify-wallet",      icon: Wallet,         labelEn: "Wallet",       labelAr: "المحفظة",       path: "/shopify/kit/wallet" },
+  { id: "shopify-wishlist",    icon: Heart,          labelEn: "Wishlist",     labelAr: "قائمة الأمنيات", path: "/shopify/kit/wishlist" },
+  { id: "shopify-reviews",     icon: Star,           labelEn: "Reviews",      labelAr: "التقييمات",     path: "/shopify/kit/reviews" },
 ] as const;
 
 const INTEL_NAV = [
@@ -162,7 +174,7 @@ function term(industry: string, id: string, fallbackEn: string, fallbackAr: stri
 // Leaves reference CORE_NAV / LOYALTY_NAV by id; groups collapse their children.
 type Leaf = { id: string; icon: React.ElementType; labelEn: string; labelAr: string; path: string };
 const LEAF_BY_ID: Record<string, Leaf> = Object.fromEntries(
-  [...CORE_NAV, ...LOYALTY_NAV].map((n) => [n.id, n as Leaf])
+  [...CORE_NAV, ...LOYALTY_NAV, ...SHOPIFY_NAV].map((n) => [n.id, n as Leaf])
 );
 interface TreeNode {
   id: string; icon: React.ElementType; labelEn: string; labelAr: string;
@@ -190,7 +202,8 @@ const MENU: TreeNode[] = [
   { id: "g-crm", icon: Heart, labelEn: "CRM", labelAr: "إدارة العملاء", module: "sales", children: ["crm", "crm-customers", "crm-pipeline"] },
   { id: "g-finance", icon: Landmark, labelEn: "Finance", labelAr: "المالية", module: "finance", children: ["finance", "fin-dashboard", "fin-invoices", "fin-expenses", "fin-reports", "fin-bank", "fin-arap"] },
   { id: "g-hr", icon: Users, labelEn: "HR", labelAr: "الموارد البشرية", module: "hr", children: ["hr", "hr-dashboard", "hr-employees", "hr-recruitment", "hr-compensation", "hr-training", "hr-performance", "hr-relations", "hr-compliance", "hr-analytics", "hr-payroll", "hr-org"] },
-  { id: "g-loyalty", icon: Gift, labelEn: "Loyalty", labelAr: "الولاء", module: "loyalty", children: ["loyalty", "loyalty-lookup", "loyalty-tx", "loyalty-rules", "loyalty-redemptions", "loyalty-campaigns", "loyalty-rewards", "loyalty-analytics", "loyalty-merge", "loyalty-notify", "loyalty-shopify", "loyalty-settings"] },
+  { id: "g-loyalty", icon: Gift, labelEn: "Loyalty", labelAr: "الولاء", module: "loyalty", children: ["loyalty", "loyalty-lookup", "loyalty-tx", "loyalty-rules", "loyalty-redemptions", "loyalty-campaigns", "loyalty-rewards", "loyalty-analytics", "loyalty-merge", "loyalty-notify", "loyalty-settings"] },
+  { id: "g-shopify", icon: Store, labelEn: "Shopify", labelAr: "شوبيفاي", children: ["shopify-integration", "shopify-sync-logs", "shopify-kit", "shopify-wallet", "shopify-wishlist", "shopify-reviews"] },
   { id: "studio", icon: BookOpen, labelEn: "Studio", labelAr: "الاستوديو", path: "/studio" },
   { id: "branches", icon: Building2, labelEn: "Branches", labelAr: "الفروع", path: "/branches" },
   { id: "team", icon: UserPlus, labelEn: "Team", labelAr: "الفريق", path: "/team" },
@@ -451,7 +464,7 @@ function SidebarContent({
             {recentPages.map(path => {
               const label = getRouteLabel(path, lang);
               // Find matching icon from nav items
-              const allNav = [...EXEC_NAV, ...CORE_NAV, ...LOYALTY_NAV, ...INTEL_NAV];
+              const allNav = [...EXEC_NAV, ...CORE_NAV, ...LOYALTY_NAV, ...SHOPIFY_NAV, ...INTEL_NAV];
               const navItem = allNav.find(n => n.path === path);
               const Icon = navItem?.icon || Activity;
               return (

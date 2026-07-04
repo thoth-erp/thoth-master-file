@@ -824,7 +824,7 @@ export default function ShopifyConnectionPage() {
           {/* Quick links */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
             {[
-              { icon: Activity, titleEn: "Sync Logs", titleAr: "سجل المزامنة", descEn: "View all sync events", descAr: "عرض كل أحداث المزامنة", path: "/loyalty/sync-logs" },
+              { icon: Activity, titleEn: "Sync Logs", titleAr: "سجل المزامنة", descEn: "View all sync events", descAr: "عرض كل أحداث المزامنة", path: "/shopify/sync-logs" },
               { icon: Zap, titleEn: "Loyalty Rules", titleAr: "قواعد الولاء", descEn: "Manage earning rules", descAr: "إدارة قواعد الاكتساب", path: "/loyalty/rules" },
               { icon: Settings, titleEn: "Loyalty Settings", titleAr: "إعدادات الولاء", descEn: "Program configuration", descAr: "إعدادات البرنامج", path: "/loyalty/settings" },
             ].map((link) => (

@@ -88,6 +88,10 @@ const LoyaltyRulesPage = lazy(() => import("./pages/LoyaltyRules"));
 const LoyaltySettingsPage = lazy(() => import("./pages/LoyaltySettings"));
 const ShopifyConnectionPage = lazy(() => import("./pages/ShopifyConnection"));
 const ShopifySyncLogsPage = lazy(() => import("./pages/ShopifySyncLogs"));
+const ShopifyKitPage = lazy(() => import("./pages/ShopifyKit"));
+const ShopifyWalletPage = lazy(() => import("./pages/ShopifyWallet"));
+const ShopifyWishlistPage = lazy(() => import("./pages/ShopifyWishlist"));
+const ShopifyReviewsPage = lazy(() => import("./pages/ShopifyReviews"));
 const LoyaltyRedemptionsPage = lazy(() => import("./pages/LoyaltyRedemptions"));
 const LoyaltyCampaignsPage = lazy(() => import("./pages/LoyaltyCampaigns"));
 const LoyaltyAnalyticsPage = lazy(() => import("./pages/LoyaltyAnalytics"));
@@ -318,10 +322,20 @@ function AppRoutes() {
         <Route path="/loyalty/rewards" component={LoyaltyRewardsPage} />
         <Route path="/loyalty/merge" component={LoyaltyMergePage} />
         <Route path="/loyalty/notifications" component={LoyaltyNotificationsPage} />
-        <Route path="/loyalty/shopify" component={ShopifyConnectionPage} />
-        <Route path="/loyalty/sync-logs" component={ShopifySyncLogsPage} />
         <Route path="/loyalty/settings" component={LoyaltySettingsPage} />
         <Route path="/loyalty" component={LoyaltyDashboard} />
+
+        {/* ── Shopify ── */}
+        <Route path="/shopify/integration" component={ShopifyConnectionPage} />
+        <Route path="/shopify/sync-logs" component={ShopifySyncLogsPage} />
+        <Route path="/shopify/kit/wallet" component={ShopifyWalletPage} />
+        <Route path="/shopify/kit/wishlist" component={ShopifyWishlistPage} />
+        <Route path="/shopify/kit/reviews" component={ShopifyReviewsPage} />
+        <Route path="/shopify/kit" component={ShopifyKitPage} />
+        <Route path="/shopify">{() => <Redirect to="/shopify/integration" />}</Route>
+        {/* Legacy paths (Shopify used to live under Loyalty) */}
+        <Route path="/loyalty/shopify">{() => <Redirect to="/shopify/integration" />}</Route>
+        <Route path="/loyalty/sync-logs">{() => <Redirect to="/shopify/sync-logs" />}</Route>
 
         {/* ── Intelligence layer ── */}
         <Route path="/intelligence" component={Intelligence} />

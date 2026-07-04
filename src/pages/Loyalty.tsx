@@ -194,7 +194,7 @@ function QuickActions({ lang, onNavigate }: { lang: "en" | "ar"; onNavigate: (pa
     { icon: Ticket,      labelEn: "Redemptions",     labelAr: "الاستبدال",       path: "/loyalty/redemptions",  color: "text-amber-500" },
     { icon: Megaphone,   labelEn: "Campaigns",       labelAr: "الحملات",         path: "/loyalty/campaigns",    color: "text-violet-500" },
     { icon: Star,        labelEn: "Rules",           labelAr: "قواعد النقاط",   path: "/loyalty/rules",        color: "text-rose-500" },
-    { icon: ShoppingBag, labelEn: "Shopify",         labelAr: "شوبيفاي",        path: "/loyalty/shopify",      color: "text-indigo-500" },
+    { icon: ShoppingBag, labelEn: "Shopify",         labelAr: "شوبيفاي",        path: "/shopify/integration",  color: "text-indigo-500" },
   ];
 
   return (

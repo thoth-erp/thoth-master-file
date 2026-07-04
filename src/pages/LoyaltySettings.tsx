@@ -260,7 +260,7 @@ function ShopifyTab({ ar }: { ar: boolean }) {
     <div className="space-y-6">
       {/* Link to full Shopify page */}
       <div className="flex justify-end">
-        <a href="/loyalty/shopify" className="text-[11px] text-primary hover:underline flex items-center gap-1">
+        <a href="/shopify/integration" className="text-[11px] text-primary hover:underline flex items-center gap-1">
           {ar ? "صفحة الاتصال الكاملة" : "Full Connection Page"}<ArrowRight size={10} />
         </a>
       </div>
