@@ -124,20 +124,18 @@ Deno.serve(async (req) => {
       if (res.ok) return json({ sent: true, channel: "resend", link });
       const detail = await res.text();
       console.error("[send-invite] Resend failed:", detail);
-      // fall through to the built-in mailer
+      // fall through to link-only
     }
 
-    // ── 2) Supabase built-in mailer (auth admin invite) ────
-    // Sends "You have been invited" and redirects into /invite/<token>
-    // after the user sets a password. Fails if the email already has
-    // an account — the link still covers that case.
-    const { error: adminErr } = await admin.auth.admin.inviteUserByEmail(inv.email, {
-      redirectTo: link,
-    });
-    if (!adminErr) return json({ sent: true, channel: "supabase", link });
-    console.error("[send-invite] admin invite failed:", adminErr.message);
-
-    return json({ sent: false, reason: adminErr.message, link });
+    // ── No email provider → link-only ──────────────────────
+    // The Supabase built-in mailer is deliberately NOT used: it silently
+    // drops mail, reports false success, and sends its own email whose
+    // links point at the Auth "Site URL" with an auth token — NOT our
+    // /invite/<token> accept page. That produced broken links. Returning
+    // sent:false makes the modal surface the correct copyable link, which
+    // always works. Set RESEND_API_KEY (with a verified domain) to enable
+    // real email delivery.
+    return json({ sent: false, reason: "no_email_provider", link });
   } catch (e) {
     console.error("[send-invite] error:", e);
     return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
