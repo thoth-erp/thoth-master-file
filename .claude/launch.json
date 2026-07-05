@@ -16,6 +16,13 @@
       "cwd": "/Users/dan/Downloads/THOTH-Production-Ready"
     },
     {
+      "name": "fashion-live",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "0.0.0.0", "--port", "5177"],
+      "port": 5177,
+      "cwd": "/Users/dan/Desktop/thoth master file"
+    },
+    {
       "name": "fashion-demo",
       "runtimeExecutable": "env",
       "runtimeArgs": ["VITE_SUPABASE_URL=", "VITE_SUPABASE_ANON_KEY=", "npx", "vite", "--host", "0.0.0.0", "--port", "5176"],
