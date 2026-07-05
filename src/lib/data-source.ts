@@ -46,6 +46,11 @@ type Tables = Database["public"]["Tables"];
 // Convert static data shapes → DB Row shapes so all pages
 // can use ONE field convention (name_en, name_ar, metadata).
 
+// One fixed timestamp for all converted demo rows: converters re-run on
+// every listPaged call, and per-call `new Date()` stamps can straddle a
+// millisecond tick, reshuffling the sort between consecutive page fetches.
+const DEMO_ROW_TS = new Date().toISOString();
+
 function convertPeople(): Tables["people"]["Row"][] {
   return PEOPLE.map(p => ({
     id: p.id,
@@ -71,8 +76,8 @@ function convertPeople(): Tables["people"]["Row"][] {
       activity: p.activity, notes: p.notes,
       files: p.files, related: p.related,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["people"]["Row"][];
 }
 
@@ -101,8 +106,8 @@ function convertOrganizations(): Tables["organizations"]["Row"][] {
       avatarColor: o.avatarColor,
       branches: o.branches,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["organizations"]["Row"][];
 }
 
@@ -134,8 +139,8 @@ function convertDeals(): Tables["deals"]["Row"][] {
       expectedCloseDateAr: d.expectedCloseDateAr,
       createdEn: d.createdEn, createdAr: d.createdAr,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["deals"]["Row"][];
 }
 
@@ -164,8 +169,8 @@ function convertWorkItems(): Tables["work_items"]["Row"][] {
       dueDateEn: w.dueDateEn, dueDateAr: w.dueDateAr,
       createdEn: w.createdEn, createdAr: w.createdAr,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["work_items"]["Row"][];
 }
 
@@ -192,8 +197,8 @@ function convertInvoices(): Tables["invoices"]["Row"][] {
       issueDateEn: i.issueDateEn, issueDateAr: i.issueDateAr,
       noteEn: i.noteEn, noteAr: i.noteAr,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["invoices"]["Row"][];
 }
 
@@ -212,8 +217,8 @@ function convertPayments(): Tables["payments"]["Row"][] {
       dateAr: p.dateAr,
       referenceAr: p.referenceAr,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["payments"]["Row"][];
 }
 
@@ -231,8 +236,8 @@ function convertExpenses(): Tables["expenses"]["Row"][] {
     description_en: e.descEn,
     description_ar: e.descAr || null,
     metadata: {},
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["expenses"]["Row"][];
 }
 
@@ -258,8 +263,8 @@ function convertResources(): Tables["resources"]["Row"][] {
       purchaseDateEn: r.purchaseDateEn, purchaseDateAr: r.purchaseDateAr,
       maintenance: r.maintenance,
     },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    created_at: DEMO_ROW_TS,
+    updated_at: DEMO_ROW_TS,
   })) as unknown as Tables["resources"]["Row"][];
 }
 
@@ -352,6 +357,9 @@ function makeSupabaseAdapter<T extends { id: string; workspace_id: string }>(
       }
       const { data, error, count } = await query
         .order(opts.orderBy ?? "created_at", { ascending: opts.ascending ?? false })
+        // Secondary sort on id: orderBy alone isn't unique, and .range over a
+        // non-deterministic order can duplicate or skip rows across pages.
+        .order("id", { ascending: true })
         .range(page * pageSize, page * pageSize + pageSize - 1);
       if (error) fail("list", error.message, workspaceId, error);
       return { rows: (data ?? []) as T[], total: count ?? 0, page, pageSize };
@@ -458,7 +466,11 @@ function makeDemoAdapter<T>(loader: () => T[], table = "demo"): EntityAdapter<T>
         let cmp: number;
         if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
         else { const as = String(av), bs = String(bv); cmp = as < bs ? -1 : as > bs ? 1 : 0; }
-        return asc ? cmp : -cmp;
+        if (cmp !== 0) return asc ? cmp : -cmp;
+        // Tiebreak on id so equal orderBy values page deterministically
+        // (mirrors the Supabase adapter's secondary .order("id")).
+        const ai = String(a.id ?? ""), bi = String(b.id ?? "");
+        return ai < bi ? -1 : ai > bi ? 1 : 0;
       });
       return {
         rows: rows.slice(page * pageSize, (page + 1) * pageSize) as T[],
