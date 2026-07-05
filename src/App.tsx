@@ -18,6 +18,7 @@ import Onboarding from "./pages/Onboarding";
 import AuthPage from "./pages/AuthPage";
 import Landing from "./pages/Landing";
 import WorkspaceSetup from "./pages/WorkspaceSetup";
+import InviteAccept from "./pages/InviteAccept";
 const ExecutiveDashboard = lazy(() => import("./pages/ExecutiveDashboard"));
 const Today = lazy(() => import("./pages/Today"));
 const People = lazy(() => import("./pages/People"));
@@ -369,6 +370,11 @@ function Router() {
 
   // ── Public landing page: reachable in every mode ──────────
   if (path === "/welcome") return <Landing />;
+
+  // ── Invitation links: public, before all auth guards ──────
+  // The page handles logged-out (inline sign in/up) and logged-in
+  // (accept button) states itself; demo mode shows a notice.
+  if (path.startsWith("/invite/")) return <InviteAccept />;
 
   // ── Demo mode ──
   if (isDemoMode) {

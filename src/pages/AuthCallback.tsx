@@ -127,9 +127,12 @@ export default function AuthCallback() {
       window.history.replaceState({}, "", window.location.pathname);
     }
 
-    // Navigate after a tiny delay so React state settles
+    // Navigate after a tiny delay so React state settles.
+    // If the user started from an invite link, return them to it so
+    // they can accept — instead of dropping them into workspace setup.
+    const pendingInvite = localStorage.getItem("thoth_pending_invite");
     setTimeout(() => {
-      navigate("/", { replace: true });
+      navigate(pendingInvite ? `/invite/${pendingInvite}` : "/", { replace: true });
     }, 100);
   }, [isAuthenticated, workspaceLoading, workspace, navigate]);
 
